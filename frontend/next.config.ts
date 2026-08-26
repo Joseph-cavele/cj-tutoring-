@@ -23,6 +23,21 @@ const nextConfig: NextConfig = {
     root: __dirname,
   },
 
+  /**
+   * Hosts allowed to reach the dev server's internal endpoints.
+   *
+   * Development only - Next ignores this in a production build. It defaults to
+   * localhost alone, so opening the dev server from a phone on the LAN gets a
+   * 403 on the HMR websocket handshake (the browser sends an Origin header
+   * that is not on the list) and hot reload silently stops working.
+   *
+   * The platform is mobile-first, so testing on a real handset is routine
+   * rather than exceptional. The pattern matches a segment at a time, so this
+   * covers the whole home subnet and survives a DHCP lease change. On a
+   * 10.x.x.x network, add "10.*.*.*" alongside it.
+   */
+  allowedDevOrigins: ["192.168.*.*"],
+
   async headers() {
     return PRIVATE_SECTIONS.map((source) => ({
       source,

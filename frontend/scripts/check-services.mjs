@@ -73,23 +73,34 @@ async function checkZoom() {
       return record('Zoom', false, payload.reason ?? payload.message ?? `HTTP ${response.status}`);
     }
 
-    // Probes the meetings endpoint the app actually uses, not users/me -
-    // they need different scopes, and a failure on users/me says nothing
-    // about whether lessons can be created.
-    const meetings = await fetch('https://api.zoom.us/v2/users/me/meetings?page_size=1', {
-      headers: { authorization: `Bearer ${payload.access_token}` },
-    });
+    // What the platform actually does with Zoom is create a meeting when a
+    // lesson is accepted and delete it when one is cancelled. The token Zoom
+    // just issued carries the granted scopes, so the capability is checked
+    // from that rather than by calling an endpoint - listing meetings needs a
+    // read scope the app never uses, and failing on it reported a working
+    // integration as broken.
+    const granted = new Set(String(payload.scope ?? '').split(/[\s,]+/).filter(Boolean));
 
-    if (!meetings.ok) {
-      const detail = await meetings.json().catch(() => ({}));
+    // Zoom issues granular scopes to newer apps and classic ones to older
+    // apps, so either spelling counts.
+    const needed = [
+      { what: 'create meetings', any: ['meeting:write:meeting:admin', 'meeting:write:admin'] },
+      { what: 'delete meetings', any: ['meeting:delete:meeting:admin', 'meeting:delete:admin'] },
+    ];
+
+    const missing = needed.filter((scope) => !scope.any.some((name) => granted.has(name)));
+
+    if (missing.length > 0) {
       return record(
         'Zoom',
         false,
-        `credentials valid, but the meetings API is out of reach: ${detail.message ?? meetings.status}`
+        `token issued, but the app cannot ${missing.map((scope) => scope.what).join(' or ')}. Add ${missing
+          .map((scope) => scope.any[0])
+          .join(' and ')} in the Zoom Marketplace app, then activate it again.`
       );
     }
 
-    record('Zoom', true, 'token + meetings API reachable');
+    record('Zoom', true, `token issued, meeting scopes granted (${granted.size} in total)`);
   } catch (error) {
     record('Zoom', false, error.message);
   }
