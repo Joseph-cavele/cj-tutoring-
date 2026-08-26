@@ -30,7 +30,11 @@ export function getTransporter(): Transporter {
 
   transporter = nodemailer.createTransport({
     service: 'gmail',
-    auth: { user, pass },
+    // App passwords are 16 characters; Google displays them in groups of four,
+    // but the spaces are not part of the password. Stripping them here means a
+    // value pasted straight off Google's screen works, and matches what
+    // scripts/check-services.mjs verifies.
+    auth: { user, pass: pass.replace(/\s+/g, '') },
   });
 
   return transporter;

@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 
 import { connectDB } from '@/lib/mongodb';
 import { Grade, Parent, Student, Tutor, User } from '@/models';
+import { notifyAccountCreated } from '@/services/notification.service';
 import type { RegisterInput } from '@/validations/auth';
 
 export class RegistrationError extends Error {
@@ -74,6 +75,11 @@ export async function registerUser(input: RegisterInput) {
     await User.deleteOne({ _id: user._id });
     throw error;
   }
+
+  // Welcome email (CLAUDE.md section 23). The account already exists, so a
+  // mail outage must not turn a successful registration into an error - the
+  // notification service swallows and logs its own failures.
+  await notifyAccountCreated({ to: email, name: user.name, role: user.role });
 
   return {
     id: user._id.toString(),
