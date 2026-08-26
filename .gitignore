@@ -9,6 +9,11 @@ build/
 # Environment files - NEVER commit these, they hold live credentials
 .env
 .env.*
+.env.local
+.env.local.bak
+*.bak
+# The example file is the one exception: it holds placeholder names only, so
+# a new developer knows which variables to set.
 !.env.example
 
 # Logs and debug output
