@@ -10,7 +10,10 @@
     "db:check": "node --env-file=.env.local scripts/check-db.mjs",
     "db:seed": "node --env-file=.env.local seed.mts",
     "check:services": "node --env-file=.env.local scripts/check-services.mjs",
-    "make:admin": "node --env-file=.env.local scripts/make-admin.mjs"
+    "make:admin": "node --env-file=.env.local scripts/make-admin.mjs",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -39,13 +42,16 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20",
     "@types/nodemailer": "^8.0.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.2",
+    "jest": "^30.4.2",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
   }
 }
