@@ -1,43 +1,61 @@
-import nodemailer, { type Transporter } from 'nodemailer';
+import { Resend } from 'resend';
 
 import { CONTACT } from '@/lib/contact';
 
 /**
- * Gmail SMTP transport (CLAUDE.md section 23).
+ * Resend transport (CLAUDE.md section 23).
  *
- * Server-only. GMAIL_APP_PASSWORD is a Google App Password, not the account
- * password - Google has rejected plain passwords for SMTP since 2022, and the
- * account needs 2FA switched on before one can be generated.
+ * Server-only. RESEND_API_KEY must never reach the browser, so nothing in
+ * this folder may be imported from a client component.
+ *
+ * FROM_EMAIL has to be an address on a domain verified in the Resend
+ * dashboard - Resend refuses to send from anything else, which is what stops
+ * the platform being used to spoof another sender.
  */
-let transporter: Transporter | null = null;
+let client: Resend | null = null;
 
 export class EmailNotConfiguredError extends Error {
-  constructor() {
-    super('Email is not configured. Set GMAIL_USER and GMAIL_APP_PASSWORD in .env.local');
+  constructor(detail?: string) {
+    super(
+      detail ??
+        'Email is not configured. Set RESEND_API_KEY and FROM_EMAIL in .env.local'
+    );
     this.name = 'EmailNotConfiguredError';
   }
 }
 
-export function getTransporter(): Transporter {
-  if (transporter) return transporter;
+/** Placeholder values from .env.example count as unconfigured. */
+function usable(value?: string): boolean {
+  return Boolean(value && !value.startsWith('your_'));
+}
 
-  const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD;
+export function isEmailConfigured(): boolean {
+  return usable(process.env.RESEND_API_KEY) && usable(process.env.FROM_EMAIL);
+}
 
-  if (!user || !pass || pass.startsWith('your_')) {
-    throw new EmailNotConfiguredError();
-  }
+function getClient(): Resend {
+  if (client) return client;
 
-  transporter = nodemailer.createTransport({
-    service: 'gmail',
-    // App passwords are 16 characters; Google displays them in groups of four,
-    // but the spaces are not part of the password. Stripping them here means a
-    // value pasted straight off Google's screen works, and matches what
-    // scripts/check-services.mjs verifies.
-    auth: { user, pass: pass.replace(/\s+/g, '') },
-  });
+  if (!isEmailConfigured()) throw new EmailNotConfiguredError();
 
-  return transporter;
+  client = new Resend(process.env.RESEND_API_KEY);
+
+  return client;
+}
+
+/**
+ * The From header.
+ *
+ * FROM_EMAIL may be a bare address or already carry a display name, so a
+ * value like "CJ Private Tutoring <hello@cj.co.za>" is passed through rather
+ * than being wrapped a second time into something Resend rejects.
+ */
+function fromAddress(): string {
+  const configured = (process.env.FROM_EMAIL ?? '').trim();
+
+  if (configured.includes('<')) return configured;
+
+  return `CJ Private Tutoring <${configured}>`;
 }
 
 export type SendMailOptions = {
@@ -50,41 +68,42 @@ export type SendMailOptions = {
 };
 
 /**
- * True when Gmail rejected the credentials rather than the message.
+ * Error codes that mean our configuration is wrong, not this message.
  *
- * A revoked or mistyped app password produces EAUTH / 535, which is a
- * configuration fault, not a fault with this enquiry. Callers already handle
- * EmailNotConfiguredError by telling the visitor to phone instead, so the two
- * are treated the same and a bad password does not become a 500.
+ * A revoked key or an unverified From domain is a fault with the deployment.
+ * Callers already handle EmailNotConfiguredError by telling the visitor to
+ * phone instead, so these are treated the same rather than becoming a 500.
  */
-function isAuthFailure(error: unknown): boolean {
-  const code = (error as { code?: string } | null)?.code;
-  const response = String((error as { response?: string } | null)?.response ?? '');
-  return code === 'EAUTH' || response.startsWith('535');
-}
+const CONFIG_ERRORS = new Set([
+  'missing_api_key',
+  'invalid_api_key',
+  'restricted_api_key',
+  'invalid_from_address',
+  'invalid_access',
+]);
 
 export async function sendMail({ to, subject, text, html, replyTo }: SendMailOptions) {
-  const transport = getTransporter();
+  const resend = getClient();
 
-  try {
-    return await sendVia(transport, { to, subject, text, html, replyTo });
-  } catch (error) {
-    if (isAuthFailure(error)) {
-      console.error('[mailer] Gmail rejected the app password', error);
-      throw new EmailNotConfiguredError();
-    }
-
-    throw error;
-  }
-}
-
-function sendVia(transport: Transporter, { to, subject, text, html, replyTo }: SendMailOptions) {
-  return transport.sendMail({
-    from: `"CJ Private Tutoring" <${process.env.GMAIL_USER}>`,
+  const { data, error } = await resend.emails.send({
+    from: fromAddress(),
     to: to ?? CONTACT.email,
     subject,
     text,
     html,
     replyTo,
   });
+
+  // Resend reports a rejected send in the payload rather than by throwing, so
+  // an unchecked call would look successful while nothing was delivered.
+  if (error) {
+    if (CONFIG_ERRORS.has(error.name)) {
+      console.error('[mailer] Resend rejected our configuration', error);
+      throw new EmailNotConfiguredError(`Resend: ${error.message}`);
+    }
+
+    throw new Error(`Resend refused the message (${error.name}): ${error.message}`);
+  }
+
+  return { id: data?.id };
 }

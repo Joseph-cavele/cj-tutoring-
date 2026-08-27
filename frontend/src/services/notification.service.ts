@@ -13,7 +13,7 @@ import { formatBookingDate } from '@/types/booking';
  * payment goes through.
  *
  * Every function here is best effort. The account, the booking and the payment
- * are all committed before a notification is attempted, so an SMTP outage is
+ * are all committed before a notification is attempted, so a Resend outage is
  * logged and swallowed rather than failing an operation the customer has
  * already completed. Nothing in this file may throw.
  */

@@ -18,7 +18,7 @@ function modeLabel(mode: string): string {
 /**
  * Stores a trial request, then notifies the office.
  *
- * The record is saved first and on its own: an SMTP outage must not lose an
+ * The record is saved first and on its own: an email outage must not lose an
  * enquiry, so a failed notification is logged rather than thrown.
  */
 export async function submitBooking(input: BookingInput) {
