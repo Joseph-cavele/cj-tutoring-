@@ -20,6 +20,7 @@ import { validateProposedLesson } from '@/services/availability.service';
 import { addMinutes, isInPast, toDateOnly, toIsoDate } from '@/lib/availability/slots';
 import { isPaymentConfigured } from '@/lib/payments';
 import { cancelMeetingForBooking, createMeetingForBooking } from '@/services/zoom.service';
+import { notifyBookingCreated } from '@/services/notification.service';
 import type { CreateBookingInput } from '@/validations/lesson-booking';
 
 export class BookingError extends Error {
@@ -246,6 +247,11 @@ export async function createBooking(user: SessionUser, input: CreateBookingInput
           slotKey(actor.studentId, input.date, slot.startTime)
         ),
       });
+
+      // Confirmation to the booker, notice to the tutor and to the office.
+      // Never throws: the lesson is already reserved, and it is better to
+      // hold a slot with no email sent than to lose the slot.
+      await notifyBookingCreated(booking._id.toString());
 
       return {
         bookingId: booking._id.toString(),

@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { connectDB } from '@/lib/mongodb';
 import { Invoice, Package, Payment, Student, Subscription, User } from '@/models';
 import { initializeTransaction } from '@/lib/payments/paystack';
+import { notifyPaymentReceived } from '@/services/notification.service';
 
 export class PaymentError extends Error {
   constructor(
@@ -127,7 +128,10 @@ export async function fulfilPayment(params: {
 
   const pkg = payment.package ? await Package.findById(payment.package) : null;
 
-  if (!pkg) return { handled: true };
+  if (!pkg) {
+    await notifyPaymentReceived(payment._id.toString());
+    return { handled: true };
+  }
 
   const startsAt = new Date();
   const expiresAt = new Date(startsAt.getTime() + pkg.validityDays * 24 * 60 * 60 * 1000);
@@ -167,6 +171,10 @@ export async function fulfilPayment(params: {
     issuedAt: new Date(),
     paidAt: payment.paidAt,
   });
+
+  // Payment confirmation (CLAUDE.md section 23). Best effort, and inside the
+  // idempotent path, so a retried webhook does not send a second receipt.
+  await notifyPaymentReceived(payment._id.toString());
 
   return { handled: true, subscriptionId: subscription._id.toString() };
 }

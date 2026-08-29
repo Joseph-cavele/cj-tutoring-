@@ -5,6 +5,7 @@ import { Booking, Invoice, Payment, User } from '@/models';
 import type { SessionUser } from '@/lib/auth/guard';
 import { bookingScopeFor } from '@/lib/booking/access';
 import { getGateway } from '@/lib/payments';
+import { notifyPaymentReceived } from '@/services/notification.service';
 import { formatBookingDate } from '@/types/booking';
 
 export class BookingPaymentError extends Error {
@@ -142,18 +143,23 @@ export async function settleBookingPayment(params: {
   payment.providerResponse = params.raw;
   await payment.save();
 
-  if (!payment.booking) return { handled: true };
+  const booking = payment.booking ? await Booking.findById(payment.booking) : null;
 
-  const booking = await Booking.findById(payment.booking);
+  if (booking) {
+    // This is the moment the tutor may act on the request (brief section 1).
+    booking.paymentStatus = 'paid';
+    booking.payment = payment._id;
+    await booking.save();
+
+    await issueInvoiceForBooking(payment._id.toString());
+  }
+
+  // Receipt to the payer and a copy to the office. Sent from here rather than
+  // from the return page, because this runs once per charge whether the
+  // customer waited for the redirect or closed the tab.
+  await notifyPaymentReceived(payment._id.toString());
 
   if (!booking) return { handled: true };
-
-  // This is the moment the tutor may act on the request (brief section 1).
-  booking.paymentStatus = 'paid';
-  booking.payment = payment._id;
-  await booking.save();
-
-  await issueInvoiceForBooking(payment._id.toString());
 
   return { handled: true, bookingId: booking._id.toString() };
 }

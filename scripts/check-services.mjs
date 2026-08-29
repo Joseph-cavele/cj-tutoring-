@@ -73,23 +73,34 @@ async function checkZoom() {
       return record('Zoom', false, payload.reason ?? payload.message ?? `HTTP ${response.status}`);
     }
 
-    // Probes the meetings endpoint the app actually uses, not users/me -
-    // they need different scopes, and a failure on users/me says nothing
-    // about whether lessons can be created.
-    const meetings = await fetch('https://api.zoom.us/v2/users/me/meetings?page_size=1', {
-      headers: { authorization: `Bearer ${payload.access_token}` },
-    });
+    // What the platform actually does with Zoom is create a meeting when a
+    // lesson is accepted and delete it when one is cancelled. The token Zoom
+    // just issued carries the granted scopes, so the capability is checked
+    // from that rather than by calling an endpoint - listing meetings needs a
+    // read scope the app never uses, and failing on it reported a working
+    // integration as broken.
+    const granted = new Set(String(payload.scope ?? '').split(/[\s,]+/).filter(Boolean));
 
-    if (!meetings.ok) {
-      const detail = await meetings.json().catch(() => ({}));
+    // Zoom issues granular scopes to newer apps and classic ones to older
+    // apps, so either spelling counts.
+    const needed = [
+      { what: 'create meetings', any: ['meeting:write:meeting:admin', 'meeting:write:admin'] },
+      { what: 'delete meetings', any: ['meeting:delete:meeting:admin', 'meeting:delete:admin'] },
+    ];
+
+    const missing = needed.filter((scope) => !scope.any.some((name) => granted.has(name)));
+
+    if (missing.length > 0) {
       return record(
         'Zoom',
         false,
-        `credentials valid, but the meetings API is out of reach: ${detail.message ?? meetings.status}`
+        `token issued, but the app cannot ${missing.map((scope) => scope.what).join(' or ')}. Add ${missing
+          .map((scope) => scope.any[0])
+          .join(' and ')} in the Zoom Marketplace app, then activate it again.`
       );
     }
 
-    record('Zoom', true, 'token + meetings API reachable');
+    record('Zoom', true, `token issued, meeting scopes granted (${granted.size} in total)`);
   } catch (error) {
     record('Zoom', false, error.message);
   }
@@ -129,29 +140,68 @@ async function checkCloudinary() {
   }
 }
 
-/* --------------------------------- Gmail ------------------------------- */
+/* -------------------------------- Resend ------------------------------- */
 
-async function checkGmail() {
-  const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD;
+async function checkResend() {
+  const key = process.env.RESEND_API_KEY;
+  const from = process.env.FROM_EMAIL;
 
-  if (!configured(user, pass)) return record('Gmail SMTP', null, 'not configured');
+  if (!configured(key)) return record('Resend', null, 'not configured');
+
+  if (!configured(from)) {
+    return record('Resend', false, 'RESEND_API_KEY is set but FROM_EMAIL is not');
+  }
+
+  // Bare address, or "Name <address>" - only the address is checked here.
+  const address = from.includes('<') ? from.split('<')[1].replace('>', '').trim() : from.trim();
+  const domain = address.split('@')[1];
 
   try {
-    const { default: nodemailer } = await import('nodemailer');
-
-    const transport = nodemailer.createTransport({
-      service: 'gmail',
-      // App passwords are 16 characters; Google shows them in groups of four,
-      // but the spaces are not part of the password.
-      auth: { user, pass: pass.replace(/\s+/g, '') },
+    // Read-only: lists the verified domains. Nothing is sent or charged.
+    const response = await fetch('https://api.resend.com/domains', {
+      headers: { authorization: `Bearer ${key}` },
     });
 
-    // verify() authenticates and disconnects. It does not send anything.
-    await transport.verify();
-    record('Gmail SMTP', true, `authenticated as ${user}`);
+    const payload = await response.json().catch(() => ({}));
+
+    if (response.status === 401 || response.status === 403) {
+      // A send-only key legitimately cannot list domains. That is a working
+      // key with narrow permissions, not a broken one, so it is not a failure
+      // - but the From domain cannot be checked, so say so.
+      if (payload.name === 'restricted_api_key') {
+        return record('Resend', true, `key valid (send-only, cannot verify ${domain})`);
+      }
+
+      return record('Resend', false, payload.message ?? `HTTP ${response.status}`);
+    }
+
+    if (!response.ok) {
+      return record('Resend', false, payload.message ?? `HTTP ${response.status}`);
+    }
+
+    const domains = payload.data ?? [];
+    const match = domains.find((entry) => entry.name === domain);
+
+    if (!match) {
+      const known = domains.map((entry) => entry.name).join(', ') || 'none';
+      return record(
+        'Resend',
+        false,
+        `key valid, but "${domain}" is not a domain on this account (has: ${known}). Resend will refuse to send from ${address}.`
+      );
+    }
+
+    if (match.status !== 'verified') {
+      return record(
+        'Resend',
+        false,
+        `key valid, but "${domain}" is ${match.status} - finish its DNS records before sending`
+      );
+    }
+
+    record('Resend', true, `key valid, sending as ${address}`);
   } catch (error) {
-    record('Gmail SMTP', false, error.message);
+    record('Resend', false, error.message);
   }
 }
 
@@ -196,7 +246,7 @@ console.log(`${DIM}Checking third-party services (read-only)...${RESET}\n`);
 await checkPaystack();
 await checkZoom();
 await checkCloudinary();
-await checkGmail();
+await checkResend();
 await checkAi();
 
 const failed = results.filter((result) => result.ok === false);

@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongodb';
 import { BookingRequest } from '@/models/BookingRequest';
 import { EmailNotConfiguredError, sendMail } from '@/lib/email/mailer';
 import { SUBJECTS } from '@/lib/curriculum';
+import { notifyTrialRequestReceived } from '@/services/notification.service';
 import type { BookingInput } from '@/validations/booking';
 
 function subjectName(slug: string): string {
@@ -17,7 +18,7 @@ function modeLabel(mode: string): string {
 /**
  * Stores a trial request, then notifies the office.
  *
- * The record is saved first and on its own: an SMTP outage must not lose an
+ * The record is saved first and on its own: an email outage must not lose an
  * enquiry, so a failed notification is logged rather than thrown.
  */
 export async function submitBooking(input: BookingInput) {
@@ -61,6 +62,18 @@ export async function submitBooking(input: BookingInput) {
     }
     // The request is already saved, so the visitor still gets a success reply.
   }
+
+  // The visitor has no account yet, so this acknowledgement is the only record
+  // they hold of the request.
+  await notifyTrialRequestReceived({
+    to: input.email,
+    name: input.name,
+    subjectName: subjectName(input.subjectSlug),
+    grade: input.grade,
+    mode: input.mode,
+    preferredDate: input.preferredDate,
+    preferredTime: input.preferredTime,
+  });
 
   return { id: booking._id.toString(), received: true };
 }

@@ -32,6 +32,16 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+*.bak
+
+# The template IS committed: it lists which variables the app needs, with
+# placeholder values only. Never put a real credential in it - this negation
+# means anything written here goes to the repo.
+!.env.example
+.env.local
+.env.local.example
+.env.local.bak
+
 
 # vercel
 .vercel
