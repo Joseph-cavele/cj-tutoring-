@@ -11,6 +11,7 @@ import {
 } from '@/services/payment-admin.service';
 import { PAYMENT_STATUS, type PaymentStatus } from '@/models/types';
 import { formatPrice } from '@/services/pricing.service';
+import ReconcilePayments from '@/components/owner/ReconcilePayments';
 import DashboardSection, { StatTile } from '@/components/dashboard/DashboardSection';
 import { FIELD_CLASS, PRIMARY_BUTTON } from '@/components/booking/ui';
 
@@ -107,6 +108,8 @@ export default async function AdminPaymentsPage(props: {
             </Link>
           </div>
         ) : null}
+
+        <ReconcilePayments />
 
         <form
           action="/tutor/payments"

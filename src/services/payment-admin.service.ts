@@ -1,14 +1,19 @@
 import { connectDB } from '@/lib/mongodb';
 import { Booking, Invoice, Payment } from '@/models';
 import type { PaymentStatus } from '@/models/types';
+import { verifyAnyPayment } from '@/services/payment-router.service';
 
 /**
- * Money, as an administrator needs to see it (CLAUDE.md section 11).
+ * Money, as the owner needs to see it (CLAUDE.md section 11).
  *
- * Read-only by design. Nothing here can mark a payment successful - that
- * happens only in the verified webhook or a server-to-server verify
- * (CLAUDE.md section 19), and an admin screen that could override it would
- * defeat the whole point of not trusting the client.
+ * Reading is the bulk of it, and nothing here DECIDES an outcome. The one
+ * write - `reconcilePendingPayments` - does not judge a payment itself: it
+ * asks the provider over a server-to-server call and settles through exactly
+ * the same code the webhook uses, so there is still one place, and only one,
+ * where a payment becomes successful (CLAUDE.md section 19).
+ *
+ * A screen that could simply mark a charge paid would defeat the whole point
+ * of not trusting the client, and there is deliberately no such function.
  */
 
 export type PaymentRow = {
@@ -195,4 +200,79 @@ export async function listInvoices(): Promise<InvoiceRow[]> {
     paidAt: invoice.paidAt?.toISOString() ?? null,
     description: invoice.items[0]?.description ?? 'Tutoring',
   }));
+}
+
+/**
+ * How long a checkout is given before it counts as stranded.
+ *
+ * A customer on the Paystack page has a live, genuinely pending payment, and
+ * asking the provider about it every few seconds would be both wasteful and
+ * confusing. Three minutes is longer than a card form takes and far shorter
+ * than a customer will wait for their lesson to be confirmed.
+ */
+const STRANDED_AFTER_MINUTES = 3;
+
+/** References older than this are not worth chasing. */
+const STRANDED_BEFORE_DAYS = 14;
+
+/** Bounds the outbound calls, so one click cannot fire hundreds of requests. */
+const RECONCILE_LIMIT = 50;
+
+export type ReconcileSummary = {
+  checked: number;
+  settled: number;
+  failed: number;
+  stillPending: number;
+};
+
+/**
+ * Asks the provider what happened to every payment still sitting at pending.
+ *
+ * The webhook is the normal path and the return page is the usual backstop,
+ * but both can miss: a customer who pays and then closes the browser never
+ * reaches the return page, and if the webhook URL is misconfigured - a real
+ * hazard, since the route is /api/webhooks/paystack and it is easy to write
+ * the segments the other way round - nothing else ever settles that charge.
+ * The money has left the customer's account and the lesson stays unconfirmed.
+ *
+ * This is the manual sweep that recovers those. It decides nothing itself: it
+ * calls the same server-to-server verification the return page uses, which
+ * settles through the same code the webhook uses, so there is still exactly
+ * one place a payment can become successful.
+ */
+export async function reconcilePendingPayments(): Promise<ReconcileSummary> {
+  await connectDB();
+
+  const now = Date.now();
+
+  const stranded = await Payment.find({
+    status: 'pending',
+    createdAt: {
+      $lte: new Date(now - STRANDED_AFTER_MINUTES * 60 * 1000),
+      $gte: new Date(now - STRANDED_BEFORE_DAYS * 24 * 60 * 60 * 1000),
+    },
+  })
+    .select('reference')
+    .sort({ createdAt: 1 })
+    .limit(RECONCILE_LIMIT)
+    .lean();
+
+  const summary: ReconcileSummary = {
+    checked: stranded.length,
+    settled: 0,
+    failed: 0,
+    stillPending: 0,
+  };
+
+  // Sequential rather than Promise.all: this talks to a third party, and a
+  // burst of fifty parallel requests is how you get rate limited.
+  for (const payment of stranded) {
+    const outcome = await verifyAnyPayment(payment.reference);
+
+    if (outcome === 'successful') summary.settled += 1;
+    else if (outcome === 'failed') summary.failed += 1;
+    else summary.stillPending += 1;
+  }
+
+  return summary;
 }

@@ -41,8 +41,32 @@ async function checkPaystack() {
       return record('Paystack', false, payload.message ?? `HTTP ${response.status}`);
     }
 
-    const mode = key.startsWith('sk_test') ? 'test mode' : 'LIVE mode';
-    record('Paystack', true, `authenticated, ${mode}`);
+    const isLive = !key.startsWith('sk_test');
+    record('Paystack', true, `authenticated, ${isLive ? 'LIVE mode' : 'test mode'}`);
+
+    if (isLive) {
+      console.log(
+        `${YELLOW}  ! This is a LIVE key. Charges are real money.${RESET}`
+      );
+    }
+
+    /**
+     * The webhook URL is dashboard configuration, not an environment variable,
+     * so nothing in this repo can verify it - and getting it wrong is silent.
+     * The route is /api/webhooks/paystack and the natural mistake is to write
+     * /api/paystack/webhook, which 404s. Since the webhook is the only thing
+     * that settles a charge when the customer closes the browser after paying,
+     * that mistake means money taken and lessons left unconfirmed.
+     *
+     * Printing the exact string to paste is the cheapest guard available.
+     */
+    const appUrl = (process.env.NEXTAUTH_URL ?? process.env.AUTH_URL ?? '')
+      .replace(/\/+$/, '');
+
+    console.log(`${DIM}  Webhook URL to set in the Paystack dashboard:${RESET}`);
+    console.log(
+      `${DIM}    ${appUrl || 'https://<your-domain>'}/api/webhooks/paystack${RESET}`
+    );
   } catch (error) {
     record('Paystack', false, error.message);
   }
