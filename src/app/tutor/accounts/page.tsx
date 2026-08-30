@@ -14,6 +14,7 @@ import {
   ParentChildren,
   RoleControl,
 } from '@/components/owner/UserControls';
+import ParentInviteControl from '@/components/owner/ParentInviteControl';
 import DashboardSection, { StatTile } from '@/components/dashboard/DashboardSection';
 import { FIELD_CLASS, PRIMARY_BUTTON } from '@/components/booking/ui';
 
@@ -251,13 +252,17 @@ function ProfileDetail({
 
   if (profile.kind === 'student') {
     return (
-      <div className="rounded-xl bg-brand-blue-50/60 p-3 text-[14px] text-brand-navy">
+      <div className="space-y-3 rounded-xl bg-brand-blue-50/60 p-3 text-[14px] text-brand-navy">
         <p>
           <span className="font-semibold">{profile.gradeName}</span>
           {profile.parents.length > 0
             ? ` · linked to ${profile.parents.map((parent) => parent.name).join(', ')}`
             : ' · no parent linked'}
         </p>
+
+        {/* Issues a one-time code the parent redeems themselves, so linking an
+            existing student no longer needs the tutor to do it by hand. */}
+        <ParentInviteControl studentId={profile.studentId} studentName={user.name} />
       </div>
     );
   }

@@ -12,6 +12,7 @@ import BookingOwnerActions from '@/components/booking/BookingOwnerActions';
 import LessonMeetingLink from '@/components/booking/LessonMeetingLink';
 import DashboardSection, { StatTile } from '@/components/dashboard/DashboardSection';
 import PerformancePanel from '@/components/dashboard/PerformancePanel';
+import ClaimChildForm from '@/components/parent/ClaimChildForm';
 import { PRIMARY_BUTTON } from '@/components/booking/ui';
 import { BOOKING_ROUTE } from '@/lib/routes';
 
@@ -142,6 +143,21 @@ export default async function ParentDashboard() {
               ))}
             </div>
 
+            {/* A parent with one child usually gains a second. Kept quiet -
+                a bordered strip rather than a card - so it does not compete
+                with the children themselves. */}
+            <div className="mt-6 rounded-2xl border-[1.5px] border-dashed border-brand-blue-100 p-5">
+              <h3 className="text-[16px] font-bold text-brand-navy">
+                Link another child
+              </h3>
+              <p className="mt-1 text-[14px] text-brand-slate">
+                Ask your tutor for an invitation code for each additional child.
+              </p>
+              <div className="mt-3">
+                <ClaimChildForm compact />
+              </div>
+            </div>
+
             {performance.length > 0 ? (
               <>
                 <h2 className="mt-10 text-2xl font-extrabold tracking-tight text-brand-navy">
@@ -183,9 +199,19 @@ function NoChildrenLinked() {
     <div className="mt-8 rounded-3xl bg-white p-8 text-center shadow-[var(--shadow-soft)]">
       <h2 className="text-xl font-bold text-brand-navy">No children on your account yet</h2>
       <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-brand-slate">
-        Add your child and you can book their first lesson straight away. They
-        get their own email invitation to set a password, so you never have to
-        choose one for them.
+        If your child already studies with us, your tutor can give you an
+        invitation code. Enter it here and their lessons, attendance and
+        results appear on this page.
+      </p>
+
+      <div className="mt-6 border-b border-brand-blue-100 pb-8">
+        <ClaimChildForm />
+      </div>
+
+      <p className="mx-auto mt-8 max-w-md text-[15px] leading-relaxed text-brand-slate">
+        New to CJ Private Tutoring? Add your child instead and book their first
+        lesson straight away. They get their own email invitation to set a
+        password, so you never have to choose one for them.
       </p>
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         <Link href={BOOKING_ROUTE} className={PRIMARY_BUTTON}>

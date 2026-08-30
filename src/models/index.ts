@@ -45,6 +45,7 @@ export {
   type IPasswordToken,
   type TokenPurpose,
 } from './PasswordToken';
+export { default as ParentInvite, type IParentInvite } from './ParentInvite';
 export { default as Subscriber, type ISubscriber } from './Subscriber';
 export { default as BookingRequest, type IBookingRequest } from './BookingRequest';
 export { default as Booking, type IBooking, type BookingStatus } from './Booking';
