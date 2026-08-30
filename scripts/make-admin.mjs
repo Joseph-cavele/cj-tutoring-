@@ -5,6 +5,10 @@
 // a self-service route to admin would be a privilege-escalation hole. Once one
 // admin exists, every other account is manageable at /admin/users.
 //
+// For the solo-tutor setup this platform is built around, you want
+// `npm run make:owner` instead - the tutor who owns the business already has
+// full access, and a separate admin account is one more thing to secure.
+//
 // Talks to the collection directly rather than importing src/models, whose
 // `@/` path aliases a plain node process cannot resolve.
 
@@ -78,8 +82,10 @@ await users.updateOne(
   {
     $set: {
       role: 'admin',
-      // A tutor account is created unable to sign in; promoting must switch
-      // that on or the new admin still cannot get in.
+      // Registration creates every account as a pending application that
+      // cannot sign in. Promoting must clear both, or the new admin is still
+      // sitting in the approval queue and still locked out.
+      approvalStatus: 'approved',
       isActive: true,
       updatedAt: new Date(),
     },

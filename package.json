@@ -11,6 +11,8 @@
     "db:seed": "node --env-file=.env.local seed.mts",
     "check:services": "node --env-file=.env.local scripts/check-services.mjs",
     "make:admin": "node --env-file=.env.local scripts/make-admin.mjs",
+    "make:owner": "node --env-file=.env.local scripts/make-owner.mjs",
+    "migrate:attendance": "node --env-file=.env.local scripts/migrate-attendance-index.mjs",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"

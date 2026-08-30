@@ -203,7 +203,7 @@ export async function setPasswordWithToken(params: {
     );
   }
 
-  const user = await User.findById(record.user).select('_id isActive');
+  const user = await User.findById(record.user).select('_id isActive approvalStatus');
 
   if (!user) throw new PasswordError('That account no longer exists', 404);
 
@@ -213,7 +213,15 @@ export async function setPasswordWithToken(params: {
 
   // An invited account has never been able to sign in. Accepting the invite is
   // what switches it on. A reset never re-activates a suspended account.
-  if (record.purpose === 'invite') user.isActive = true;
+  //
+  // The approvalStatus check is belt and braces: an applicant the tutor has
+  // not accepted is never issued an invite token in the first place, so this
+  // should be unreachable - but accepting an invite is the one code path that
+  // can activate an account without the tutor, and it must never become a way
+  // around their decision.
+  if (record.purpose === 'invite' && user.approvalStatus === 'approved') {
+    user.isActive = true;
+  }
 
   await user.save();
 

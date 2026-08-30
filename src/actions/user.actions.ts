@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 
 import { getAuthorizedUser } from '@/lib/auth/guard';
+import { STAFF_ROLES } from '@/lib/auth/roles';
 import {
   UserAdminError,
   changeUserRole,
@@ -40,9 +41,9 @@ function refresh() {
 }
 
 export async function linkParentAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser('admin');
+  const user = await getAuthorizedUser(STAFF_ROLES);
 
-  if (!user) return { ok: false, error: 'Only an admin can manage accounts' };
+  if (!user) return { ok: false, error: 'Only the tutor or an admin can manage accounts' };
 
   const parsed = linkParentSchema.safeParse(input);
 
@@ -58,9 +59,9 @@ export async function linkParentAction(input: unknown): Promise<ActionResult> {
 }
 
 export async function unlinkParentAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser('admin');
+  const user = await getAuthorizedUser(STAFF_ROLES);
 
-  if (!user) return { ok: false, error: 'Only an admin can manage accounts' };
+  if (!user) return { ok: false, error: 'Only the tutor or an admin can manage accounts' };
 
   const parsed = linkParentSchema.safeParse(input);
 
@@ -76,9 +77,9 @@ export async function unlinkParentAction(input: unknown): Promise<ActionResult> 
 }
 
 export async function setUserActiveAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser('admin');
+  const user = await getAuthorizedUser(STAFF_ROLES);
 
-  if (!user) return { ok: false, error: 'Only an admin can manage accounts' };
+  if (!user) return { ok: false, error: 'Only the tutor or an admin can manage accounts' };
 
   const parsed = setUserActiveSchema.safeParse(input);
 
@@ -94,9 +95,9 @@ export async function setUserActiveAction(input: unknown): Promise<ActionResult>
 }
 
 export async function changeUserRoleAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser('admin');
+  const user = await getAuthorizedUser(STAFF_ROLES);
 
-  if (!user) return { ok: false, error: 'Only an admin can manage accounts' };
+  if (!user) return { ok: false, error: 'Only the tutor or an admin can manage accounts' };
 
   const parsed = changeRoleSchema.safeParse(input);
 

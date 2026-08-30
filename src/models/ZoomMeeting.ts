@@ -1,5 +1,7 @@
 import { Schema, model, models, type Model, type Types } from 'mongoose';
 
+import { ZOOM_MEETING_STATUS, type ZoomMeetingStatus } from './types';
+
 /**
  * A Zoom meeting backing one lesson.
  *
@@ -22,6 +24,20 @@ export interface IZoomMeeting {
   startsAt: Date;
   durationMinutes: number;
   recordingUrl?: string;
+  /** Set from verified Zoom webhook events, never from the app. */
+  status: ZoomMeetingStatus;
+  /** When the lesson actually started and ended, as opposed to when it was booked. */
+  actualStartedAt?: Date;
+  actualEndedAt?: Date;
+  /** Who was in the room, built up from participant_joined / participant_left. */
+  participants: {
+    zoomUserId?: string;
+    name?: string;
+    email?: string;
+    joinedAt?: Date;
+    leftAt?: Date;
+    minutes?: number;
+  }[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,6 +55,33 @@ const zoomMeetingSchema = new Schema<IZoomMeeting>(
     startsAt: { type: Date, required: true },
     durationMinutes: { type: Number, default: 60, min: 1 },
     recordingUrl: { type: String },
+    status: {
+      type: String,
+      enum: ZOOM_MEETING_STATUS,
+      default: 'scheduled',
+      required: true,
+      index: true,
+    },
+    actualStartedAt: { type: Date },
+    actualEndedAt: { type: Date },
+    // _id: false - these are plain sub-documents, not things to address on
+    // their own, and an id per participant would only add noise.
+    participants: {
+      type: [
+        new Schema(
+          {
+            zoomUserId: { type: String },
+            name: { type: String },
+            email: { type: String },
+            joinedAt: { type: Date },
+            leftAt: { type: Date },
+            minutes: { type: Number, min: 0 },
+          },
+          { _id: false }
+        ),
+      ],
+      default: [],
+    },
   },
   { timestamps: true }
 );

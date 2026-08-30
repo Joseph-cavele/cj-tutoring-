@@ -31,6 +31,17 @@ export const AI_CHAT_RULES: RateLimitRule[] = [
   { name: 'hourly', limit: 40, windowMs: HOUR },
 ];
 
+/**
+ * Limits for a signed-out visitor asking the assistant.
+ *
+ * Lower than the signed-in allowance and keyed by IP rather than account: an
+ * anonymous caller has nothing at stake, and every turn costs real tokens.
+ */
+export const AI_CHAT_ANON_RULES: RateLimitRule[] = [
+  { name: 'burst', limit: 3, windowMs: MINUTE },
+  { name: 'hourly', limit: 12, windowMs: HOUR },
+];
+
 /** Defaults for ordinary read/write API routes. */
 export const DEFAULT_API_RULES: RateLimitRule[] = [
   { name: 'burst', limit: 30, windowMs: MINUTE },

@@ -41,11 +41,13 @@ export async function requireUser(callbackUrl?: string): Promise<SessionUser> {
  * an error: they are authenticated, just not entitled to this page.
  */
 export async function requireRole(
-  roles: Role | Role[],
+  // readonly so a `[...] as const` list such as STAFF_ROLES can be passed
+  // straight in without being copied at every call site.
+  roles: Role | readonly Role[],
   callbackUrl?: string
 ): Promise<SessionUser> {
   const user = await requireUser(callbackUrl);
-  const allowed = Array.isArray(roles) ? roles : [roles];
+  const allowed = Array.isArray(roles) ? roles : [roles as Role];
 
   if (!allowed.includes(user.role)) {
     redirect(homeForRole(user.role, '/login'));
@@ -59,14 +61,14 @@ export async function requireRole(
  * response rather than redirect. Returns null when the caller is not allowed.
  */
 export async function getAuthorizedUser(
-  roles?: Role | Role[]
+  roles?: Role | readonly Role[]
 ): Promise<SessionUser | null> {
   const session = await auth();
 
   if (!session?.user?.id || !session.user.role) return null;
 
   if (roles) {
-    const allowed = Array.isArray(roles) ? roles : [roles];
+    const allowed = Array.isArray(roles) ? roles : [roles as Role];
     if (!allowed.includes(session.user.role)) return null;
   }
 

@@ -64,13 +64,48 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
 
   callbacks: {
-    // Runs on sign-in and on every token refresh. What it writes here is what
-    // the proxy later reads via getToken, so role must be set.
+    /**
+     * Runs on sign-in and on every token refresh. What it writes here is what
+     * the proxy later reads via getToken, so role must be set.
+     *
+     * It also revalidates the account against the database. A JWT session
+     * cannot be revoked by deleting a row - the token is self-contained and
+     * stays valid until it expires - so without this check, changing a
+     * password or deactivating an account would leave every existing session
+     * running for up to an hour. Returning null ends the session.
+     *
+     * The cost is one indexed lookup by _id per token read, projected down to
+     * three fields. That is a deliberate trade: this app holds children's
+     * marks and payment history, and "signed out everywhere" has to mean it.
+     */
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id as string;
         token.role = user.role as Role;
+        return token;
       }
+
+      if (!token.id) return token;
+
+      await connectDB();
+
+      const account = await User.findById(token.id)
+        .select('role isActive sessionsValidFrom')
+        .lean();
+
+      // Deleted or deactivated since the token was issued.
+      if (!account || !account.isActive) return null;
+
+      // Issued before the last credential change, so it belongs to a password
+      // that no longer opens this account. `iat` is in seconds.
+      if (account.sessionsValidFrom && token.iat) {
+        if (account.sessionsValidFrom.getTime() > token.iat * 1000) return null;
+      }
+
+      // A role changed by an admin takes effect at the next request rather
+      // than at the next sign-in.
+      token.role = account.role;
+
       return token;
     },
 

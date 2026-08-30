@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowLeft, Search } from 'lucide-react';
 
 import { requireRole } from '@/lib/auth/guard';
+import { STAFF_ROLES } from '@/lib/auth/roles';
 import {
   getPaymentTotals,
   listInvoices,
@@ -26,7 +27,7 @@ export const dynamic = 'force-dynamic';
 export default async function AdminPaymentsPage(props: {
   searchParams: Promise<{ status?: string; q?: string }>;
 }) {
-  await requireRole('admin', '/admin/payments');
+  await requireRole(STAFF_ROLES, '/admin/payments');
 
   // searchParams is a Promise in Next 16.
   const params = await props.searchParams;

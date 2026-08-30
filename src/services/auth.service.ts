@@ -23,6 +23,11 @@ const SALT_ROUNDS = 12;
  * Business logic lives here rather than in the route handler (CLAUDE.md
  * section 27). Only student, parent and tutor can be created this way - an
  * admin is made deliberately, never by someone filling in a form.
+ *
+ * Every self-registration is an application, not an account. It is written
+ * `pending` and inactive, and the tutor decides (see application.service).
+ * A tutoring business takes on minors, so who gets through the door is the
+ * tutor's call rather than whoever completes a form.
  */
 export async function registerUser(input: RegisterInput) {
   await connectDB();
@@ -43,9 +48,10 @@ export async function registerUser(input: RegisterInput) {
     passwordHash,
     role: input.role,
     phone: input.phone || undefined,
-    // Tutors stay inactive until an admin verifies them: an unvetted adult must
-    // not reach students, and CLAUDE.md section 3 makes tutor a staff role.
-    isActive: input.role !== 'tutor',
+    // Nobody signs in on the strength of filling in a form. isActive is what
+    // src/auth.ts actually checks at login; approvalStatus is why.
+    approvalStatus: 'pending',
+    isActive: false,
   });
 
   try {
@@ -84,8 +90,8 @@ export async function registerUser(input: RegisterInput) {
   return {
     id: user._id.toString(),
     role: user.role,
-    // Tutors cannot sign in yet, so the UI needs to say so rather than send
-    // them to a login that will reject them.
-    requiresApproval: input.role === 'tutor',
+    // Nobody can sign in yet, so the form must say so rather than send them to
+    // a login that would reject them with no explanation.
+    requiresApproval: true,
   };
 }

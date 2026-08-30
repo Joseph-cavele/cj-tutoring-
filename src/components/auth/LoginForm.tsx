@@ -33,8 +33,14 @@ export default function LoginForm() {
     const result = await signIn('credentials', { ...values, redirect: false });
 
     if (!result || result.error) {
-      // Deliberately vague: the response must not reveal which emails exist.
-      setFormError('Those details did not match an active account.');
+      // Deliberately vague about which of the two was wrong: the response must
+      // not reveal which emails exist. The second sentence is the same for
+      // everybody, so it adds the one explanation a new applicant needs -
+      // their account is closed until the tutor accepts them - without
+      // confirming anything about this particular address.
+      setFormError(
+        'Those details did not match an open account. If you have just registered, you can sign in once your tutor has accepted your application - we will email you.'
+      );
       return;
     }
 

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 
 import { requireRole } from '@/lib/auth/guard';
+import { STAFF_ROLES } from '@/lib/auth/roles';
 import { listBookings } from '@/services/lesson-booking.service';
 import { BOOKING_STATUSES, type BookingStatus } from '@/models/Booking';
 import BookingCard from '@/components/booking/BookingCard';
@@ -20,7 +21,7 @@ export const dynamic = 'force-dynamic';
 export default async function AdminBookingsPage(props: {
   searchParams: Promise<{ status?: string }>;
 }) {
-  const user = await requireRole('admin', '/admin/bookings');
+  const user = await requireRole(STAFF_ROLES, '/admin/bookings');
 
   // searchParams is a Promise in Next 16.
   const params = await props.searchParams;

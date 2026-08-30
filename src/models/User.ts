@@ -1,5 +1,5 @@
 import { Schema, model, models, type Model, type Types } from 'mongoose';
-import { ROLES, type Role } from './types';
+import { APPROVAL_STATUS, ROLES, type ApprovalStatus, type Role } from './types';
 
 export interface IUser {
   _id: Types.ObjectId;
@@ -10,7 +10,18 @@ export interface IUser {
   phone?: string;
   avatar?: { url: string; publicId: string };
   emailVerifiedAt?: Date;
+  /** Where this account stands with the tutor. See APPROVAL_STATUS. */
+  approvalStatus: ApprovalStatus;
+  approvedAt?: Date;
+  approvedBy?: Types.ObjectId;
+  /** Why the tutor accepted or declined, shown to the applicant. */
+  decisionNote?: string;
   isActive: boolean;
+  /**
+   * Sessions issued before this instant are refused at the next request.
+   * Set when the password changes, so changing it signs out every device.
+   */
+  sessionsValidFrom?: Date;
   lastLoginAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -33,7 +44,21 @@ const userSchema = new Schema<IUser>(
     phone: { type: String, trim: true },
     avatar: { url: String, publicId: String },
     emailVerifiedAt: { type: Date },
+    // Defaults to approved, not pending: documents written before this field
+    // existed have no value for it, and they must keep signing in. Only
+    // registerUser sets `pending`, explicitly.
+    approvalStatus: {
+      type: String,
+      enum: APPROVAL_STATUS,
+      default: 'approved',
+      required: true,
+      index: true,
+    },
+    approvedAt: { type: Date },
+    approvedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    decisionNote: { type: String, trim: true },
     isActive: { type: Boolean, default: true },
+    sessionsValidFrom: { type: Date },
     lastLoginAt: { type: Date },
   },
   { timestamps: true }

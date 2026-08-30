@@ -7,6 +7,53 @@ import { AI_MODEL, SYSTEM_INSTRUCTION, getGeminiClient } from '@/lib/ai/gemini';
 /** How much prior turn-taking to replay as context. */
 const HISTORY_LIMIT = 20;
 
+/**
+ * One turn against the model.
+ *
+ * Shared by the signed-in and signed-out paths so both get the same system
+ * instruction and the same error handling - an assistant that behaved
+ * differently depending on whether you were logged in would be two products.
+ */
+async function askModel(
+  // `system` is in the stored role union; Gemini has no system turn in
+  // `contents`, so it folds into `user` exactly as it did before, with the
+  // real system instruction passed separately in config.
+  history: { role: 'user' | 'assistant' | 'system'; content: string }[],
+  message: string
+): Promise<string> {
+  const contents = [
+    ...history.map((entry) => ({
+      role: entry.role === 'assistant' ? ('model' as const) : ('user' as const),
+      parts: [{ text: entry.content }],
+    })),
+    { role: 'user' as const, parts: [{ text: message }] },
+  ];
+
+  let reply: string;
+
+  try {
+    const response = await getGeminiClient().models.generateContent({
+      model: AI_MODEL,
+      contents,
+      config: { systemInstruction: SYSTEM_INSTRUCTION },
+    });
+
+    reply = response.text?.trim() ?? '';
+  } catch (error) {
+    // Provider errors can carry quota and account detail, so they stay in the
+    // server log.
+    console.error('[ai-chat] provider request failed', error);
+    throw new AiChatError('The assistant is unavailable right now. Please try again.', 502);
+  }
+
+  if (!reply) {
+    // Safety filters and token limits can both produce an empty candidate.
+    throw new AiChatError('The assistant returned an empty response. Try rephrasing.', 502);
+  }
+
+  return reply;
+}
+
 export class AiChatError extends Error {
   constructor(
     message: string,
@@ -18,13 +65,15 @@ export class AiChatError extends Error {
 }
 
 type SendMessageInput = {
-  userId: string;
+  /** null for a signed-out visitor, whose turn is never stored. */
+  userId: string | null;
   message: string;
   conversationId?: string;
 };
 
 type SendMessageResult = {
-  conversationId: string;
+  /** null for a signed-out visitor - there is no thread to come back to. */
+  conversationId: string | null;
   reply: string;
 };
 
@@ -34,12 +83,22 @@ type SendMessageResult = {
  * Business logic lives here rather than in the route handler or the UI
  * (section 27), and every query is scoped by userId so one student can never
  * read another conversation (section 25).
+ *
+ * A signed-out visitor gets a single-turn answer: nothing is written, and no
+ * history is replayed. There is no account to file the conversation under, and
+ * storing anonymous transcripts would collect personal detail from minors that
+ * nobody asked for and nobody could later delete on request.
  */
 export async function sendChatMessage({
   userId,
   message,
   conversationId,
 }: SendMessageInput): Promise<SendMessageResult> {
+  if (!userId) {
+    // No conversation, no history, no writes.
+    return { conversationId: null, reply: await askModel([], message) };
+  }
+
   await connectDB();
 
   const conversation = conversationId
@@ -69,35 +128,10 @@ export async function sendChatMessage({
     content: message,
   });
 
-  const contents = [
-    ...orderedHistory.map((entry) => ({
-      role: entry.role === 'assistant' ? ('model' as const) : ('user' as const),
-      parts: [{ text: entry.content }],
-    })),
-    { role: 'user' as const, parts: [{ text: message }] },
-  ];
-
-  let reply: string;
-
-  try {
-    const response = await getGeminiClient().models.generateContent({
-      model: AI_MODEL,
-      contents,
-      config: { systemInstruction: SYSTEM_INSTRUCTION },
-    });
-
-    reply = response.text?.trim() ?? '';
-  } catch (error) {
-    // Provider errors can carry quota and account detail, so they stay in the
-    // server log. The student message is already saved, so the turn can be retried.
-    console.error('[ai-chat] provider request failed', error);
-    throw new AiChatError('The assistant is unavailable right now. Please try again.', 502);
-  }
-
-  if (!reply) {
-    // Safety filters and token limits can both produce an empty candidate.
-    throw new AiChatError('The assistant returned an empty response. Try rephrasing.', 502);
-  }
+  const reply = await askModel(
+    orderedHistory.map((entry) => ({ role: entry.role, content: entry.content })),
+    message
+  );
 
   await AiMessage.create({
     conversation: conversation._id,

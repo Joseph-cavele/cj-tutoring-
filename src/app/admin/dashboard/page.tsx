@@ -1,4 +1,5 @@
 import { requireRole } from '@/lib/auth/guard';
+import { STAFF_ROLES } from '@/lib/auth/roles';
 import DashboardShell, { type DashboardCard } from '@/components/dashboard/DashboardShell';
 
 export const dynamic = 'force-dynamic';
@@ -7,6 +8,11 @@ export const dynamic = 'force-dynamic';
 // Only sections that actually exist. A card linking to an unbuilt route is a
 // 404 with extra steps, so the rest are added as they are built.
 const CARDS: DashboardCard[] = [
+  {
+    title: 'Applications',
+    body: 'Accept or decline the students, parents and tutors asking to join.',
+    href: '/tutor/applications',
+  },
   {
     title: 'Users',
     body: 'Accounts, roles, and linking parents to their children.',
@@ -33,13 +39,22 @@ const CARDS: DashboardCard[] = [
     body: 'Money collected, outstanding lessons and every invoice.',
     href: '/admin/payments',
   },
+  {
+    title: 'Settings',
+    body: 'Change the email address and password you sign in with.',
+    href: '/tutor/settings',
+  },
 ];
 
 export default async function AdminDashboard() {
   // Server-side check. The proxy also guards this prefix, but authorization
   // is never left to the edge alone.
-  const user = await requireRole('admin', '/admin/dashboard');
+  const user = await requireRole(STAFF_ROLES, '/admin/dashboard');
   const firstName = user.name?.split(' ')[0] ?? 'there';
 
-  return <DashboardShell role="Admin" greeting={`Hello, ${firstName}`} cards={CARDS} />;
+  // The business is run by one tutor who owns it, so calling their own screen
+  // "Admin" would be wrong. Only a separate admin account sees that word.
+  const label = user.role === 'tutor' ? 'Owner' : 'Admin';
+
+  return <DashboardShell role={label} greeting={`Hello, ${firstName}`} cards={CARDS} />;
 }

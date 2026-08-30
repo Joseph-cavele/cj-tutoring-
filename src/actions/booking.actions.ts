@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 
 import { getAuthorizedUser } from '@/lib/auth/guard';
+import { STAFF_ROLES } from '@/lib/auth/roles';
 import {
   BookingError,
   adminSetBookingStatus,
@@ -148,9 +149,9 @@ export async function cancelBookingAction(input: unknown): Promise<ActionResult>
 }
 
 export async function adminSetBookingStatusAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser('admin');
+  const user = await getAuthorizedUser(STAFF_ROLES);
 
-  if (!user) return failure('Only an admin can do that');
+  if (!user) return failure('Only the tutor or an admin can do that');
 
   const parsed = adminStatusSchema.safeParse(input);
 
