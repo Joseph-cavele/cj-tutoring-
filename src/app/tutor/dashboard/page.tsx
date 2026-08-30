@@ -273,6 +273,12 @@ export default async function TutorDashboard() {
 
         <nav aria-label="Tutor sections" className="grid gap-3 sm:grid-cols-2">
           <SectionLink
+            href="/tutor/calendar"
+            icon={<CalendarClock className="size-5" />}
+            title="Calendar"
+            body="Your month at a glance, and the days you are not teaching."
+          />
+          <SectionLink
             href="/tutor/availability"
             icon={<CalendarClock className="size-5" />}
             title="Availability"

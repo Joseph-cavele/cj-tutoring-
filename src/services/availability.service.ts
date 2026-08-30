@@ -1,6 +1,6 @@
 import { connectDB } from '@/lib/mongodb';
 import type { DeliveryMode } from '@/models/types';
-import { Availability, Booking, Subject, Tutor } from '@/models';
+import { Availability, Booking, Subject, TimeOff, Tutor } from '@/models';
 import { ACTIVE_BOOKING_STATUSES } from '@/models/Booking';
 import {
   coveredSlots,
@@ -76,6 +76,19 @@ export async function getOfferedSlots(params: {
   await connectDB();
 
   const date = toDateOnly(params.isoDate);
+
+  /**
+   * A day the tutor has blocked offers nothing, whatever the weekly pattern
+   * says. Checked HERE rather than in the picker because this function is
+   * also what `validateProposedLesson` calls on submit - putting it anywhere
+   * else would let a client that skips the picker book straight through a
+   * blocked day.
+   */
+  const blocked = await TimeOff.findOne({ tutor: params.tutorId, date })
+    .select('_id')
+    .lean();
+
+  if (blocked) return [];
 
   const windows = await Availability.find({
     tutor: params.tutorId,
