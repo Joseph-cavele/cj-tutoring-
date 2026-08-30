@@ -433,7 +433,7 @@ export async function cancelBooking(
     }
 
     if (
-      user.role !== 'admin' &&
+      !isStaff(user.role) &&
       isInPast(toIsoDate(booking.date), booking.startTime)
     ) {
       throw new BookingError('That lesson has already started', 409);
@@ -521,11 +521,11 @@ export async function getBookableStudents(user: SessionUser) {
 
   // Admins see everyone; a parent sees only the ids their scope allows.
   const students = await Student.find(
-    user.role === 'admin' ? {} : studentFilter ? { _id: studentFilter } : { _id: null }
+    isStaff(user.role) ? {} : studentFilter ? { _id: studentFilter } : { _id: null }
   )
     .populate<{ user: { name: string } }>('user', 'name')
     .select('user')
-    .limit(user.role === 'admin' ? 200 : 50)
+    .limit(isStaff(user.role) ? 200 : 50)
     .lean();
 
   return students.map((student) => ({

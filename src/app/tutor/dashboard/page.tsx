@@ -6,7 +6,7 @@ import {
   GraduationCap,
   KeyRound,
   Receipt,
-  Settings,
+
   UserPlus,
   Users,
 } from 'lucide-react';
@@ -237,7 +237,7 @@ export default async function TutorDashboard() {
               </p>
             </div>
 
-            <Link href="/admin/payments" className={SECONDARY_BUTTON}>
+            <Link href="/tutor/payments" className={SECONDARY_BUTTON}>
               <Receipt className="size-4" aria-hidden="true" />
               Payments and invoices
             </Link>
@@ -312,28 +312,40 @@ export default async function TutorDashboard() {
             body="Accept or decline the people asking to join."
           />
           <SectionLink
-            href="/admin/payments"
+            href="/tutor/payments"
             icon={<CreditCard className="size-5" />}
             title="Payments and invoices"
             body="Revenue, outstanding lessons and every invoice."
           />
           <SectionLink
-            href="/admin/users"
+            href="/tutor/accounts"
             icon={<Users className="size-5" />}
             title="Accounts"
             body="Students, parents and linking a parent to their child."
           />
           <SectionLink
-            href="/admin/bookings"
+            href="/tutor/bookings"
             icon={<CalendarClock className="size-5" />}
             title="All bookings"
             body="Every lesson booked, and the power to change its status."
           />
           <SectionLink
-            href="/admin/dashboard"
-            icon={<Settings className="size-5" />}
-            title="Business settings"
-            body="Subjects, tutors, availability and the rest of the admin."
+            href="/tutor/subjects"
+            icon={<BookOpen className="size-5" />}
+            title="Subjects"
+            body="Add, edit and remove the subjects you teach."
+          />
+          <SectionLink
+            href="/tutor/team"
+            icon={<UserPlus className="size-5" />}
+            title="Tutor records"
+            body="Rates, subjects and verification for every tutor account."
+          />
+          <SectionLink
+            href="/tutor/coverage"
+            icon={<CalendarClock className="size-5" />}
+            title="Coverage"
+            body="Which hours are open across the week, and where the gaps are."
           />
           <SectionLink
             href="/tutor/settings"

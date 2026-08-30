@@ -19,7 +19,7 @@ export const dynamic = 'force-dynamic';
  * hours - and then having a conversation.
  */
 export default async function AdminAvailabilityPage() {
-  await requireRole(STAFF_ROLES, '/admin/availability');
+  await requireRole(STAFF_ROLES, '/tutor/coverage');
 
   const weeks = await getAllTutorWeeks();
 
@@ -45,7 +45,7 @@ export default async function AdminAvailabilityPage() {
       <div className="mx-auto max-w-5xl space-y-6 px-4 sm:px-6 lg:px-8">
         <div>
           <Link
-            href="/admin/dashboard"
+            href="/tutor/dashboard"
             className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-brand-blue hover:underline"
           >
             <ArrowLeft className="size-4" aria-hidden="true" />

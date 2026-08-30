@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 
 import { connectDB } from '@/lib/mongodb';
-import { Grade, Parent, Student, Tutor, User } from '@/models';
+import { Grade, Parent, Student, User } from '@/models';
 import { notifyAccountCreated } from '@/services/notification.service';
 import type { RegisterInput } from '@/validations/auth';
 
@@ -72,9 +72,6 @@ export async function registerUser(input: RegisterInput) {
       await Parent.create({ user: user._id });
     }
 
-    if (input.role === 'tutor') {
-      await Tutor.create({ user: user._id, isVerified: false });
-    }
   } catch (error) {
     // Without a profile the account is unusable, so do not leave a half-made
     // user behind for someone to sign in with.

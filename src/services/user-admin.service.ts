@@ -14,11 +14,11 @@ export class UserAdminError extends Error {
 }
 
 /**
- * Admin management of accounts and the links between them.
+ * Owner management of accounts and the links between them.
  *
  * The guards here are the point of the module. A schema can check that a role
- * is one of four strings; it cannot check that changing it would leave the
- * platform with no administrator, or that the person clicking is about to lock
+ * is one of three strings; it cannot check that changing it would leave the
+ * platform with no owner, or that the person clicking is about to lock
  * themselves out. Those live in this layer, above the database and below the UI.
  */
 
@@ -31,7 +31,6 @@ export type AdminUserProfile =
     }
   | { kind: 'parent'; parentId: string; children: { studentId: string; name: string }[] }
   | { kind: 'tutor'; tutorId: string; isVerified: boolean; isActive: boolean; subjectCount: number }
-  | { kind: 'admin' }
   /** A profile document that should exist but does not. */
   | { kind: 'missing'; expected: Role };
 
@@ -116,9 +115,7 @@ export async function listUsersForAdmin(input: UserQueryInput): Promise<AdminUse
 
     let profile: AdminUserProfile = { kind: 'missing', expected: user.role };
 
-    if (user.role === 'admin') {
-      profile = { kind: 'admin' };
-    } else if (user.role === 'student') {
+    if (user.role === 'student') {
       const student = studentByUser.get(id);
 
       if (student) {
@@ -235,10 +232,16 @@ export async function unlinkParentFromStudent(params: {
   return { unlinked: true };
 }
 
-/** How many administrators could still sign in if this one changed. */
-async function otherActiveAdmins(excludingUserId: string): Promise<number> {
+/**
+ * How many owners could still sign in if this one changed.
+ *
+ * `tutor` is the owner role, so this is the count that decides whether the
+ * platform still has somebody who can administer it. On a solo-tutor install
+ * the answer is normally zero, which is exactly why the callers refuse.
+ */
+async function otherActiveOwners(excludingUserId: string): Promise<number> {
   return User.countDocuments({
-    role: 'admin',
+    role: 'tutor',
     isActive: true,
     _id: { $ne: excludingUserId },
   });
@@ -266,12 +269,12 @@ export async function setUserActive(params: {
 
   if (!user) throw new UserAdminError('That account was not found', 404);
 
-  if (!params.isActive && user.role === 'admin') {
-    const remaining = await otherActiveAdmins(params.userId);
+  if (!params.isActive && user.role === 'tutor') {
+    const remaining = await otherActiveOwners(params.userId);
 
     if (remaining === 0) {
       throw new UserAdminError(
-        'That is the only active administrator. Promote someone else first.',
+        'That is the only active tutor account. Deactivating it would leave nobody able to run the platform.',
         409
       );
     }
@@ -307,12 +310,12 @@ export async function changeUserRole(params: {
   if (!user) throw new UserAdminError('That account was not found', 404);
   if (user.role === params.role) return { userId: params.userId, role: params.role };
 
-  if (user.role === 'admin') {
-    const remaining = await otherActiveAdmins(params.userId);
+  if (user.role === 'tutor') {
+    const remaining = await otherActiveOwners(params.userId);
 
     if (remaining === 0) {
       throw new UserAdminError(
-        'That is the only active administrator. Promote someone else first.',
+        'That is the only active tutor account. Promote someone else to tutor first.',
         409
       );
     }

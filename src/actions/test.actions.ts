@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { getAuthorizedUser } from '@/lib/auth/guard';
+import { getCapableUser } from '@/lib/auth/guard';
 import {
   TestError,
   closeTest,
@@ -65,7 +65,7 @@ function issuesOf(error: { issues: readonly { path: PropertyKey[]; message: stri
 export async function generateTestAction(
   input: unknown
 ): Promise<ActionResult<{ testId: string; questionCount: number; totalMarks: number }>> {
-  const user = await getAuthorizedUser(['tutor', 'admin']);
+  const user = await getCapableUser('tests:generate');
 
   if (!user) return { ok: false, error: 'Only a tutor can create tests' };
 
@@ -89,7 +89,7 @@ export async function generateTestAction(
 }
 
 export async function saveTestAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser(['tutor', 'admin']);
+  const user = await getCapableUser('tests:manage');
 
   if (!user) return { ok: false, error: 'Only a tutor can edit tests' };
 
@@ -114,7 +114,7 @@ export async function saveTestAction(input: unknown): Promise<ActionResult> {
 }
 
 export async function publishTestAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser(['tutor', 'admin']);
+  const user = await getCapableUser('tests:manage');
 
   if (!user) return { ok: false, error: 'Only a tutor can publish tests' };
 
@@ -134,7 +134,7 @@ export async function publishTestAction(input: unknown): Promise<ActionResult> {
 }
 
 export async function closeTestAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser(['tutor', 'admin']);
+  const user = await getCapableUser('tests:manage');
 
   if (!user) return { ok: false, error: 'Only a tutor can close tests' };
 
@@ -153,7 +153,7 @@ export async function closeTestAction(input: unknown): Promise<ActionResult> {
 }
 
 export async function deleteTestAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser(['tutor', 'admin']);
+  const user = await getCapableUser('tests:manage');
 
   if (!user) return { ok: false, error: 'Only a tutor can delete tests' };
 
@@ -172,7 +172,7 @@ export async function deleteTestAction(input: unknown): Promise<ActionResult> {
 
 /** Tutor overrides an AI or automatic mark. Audited in the service. */
 export async function adjustMarkAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser(['tutor', 'admin']);
+  const user = await getCapableUser('tests:mark');
 
   if (!user) return { ok: false, error: 'Only a tutor can change a mark' };
 
@@ -200,7 +200,7 @@ export async function adjustMarkAction(input: unknown): Promise<ActionResult> {
 export async function startAttemptAction(
   input: unknown
 ): Promise<ActionResult<{ attemptId: string }>> {
-  const user = await getAuthorizedUser('student');
+  const user = await getCapableUser('tests:attempt');
 
   if (!user) return { ok: false, error: 'Only a student can take a test' };
 
@@ -218,7 +218,7 @@ export async function startAttemptAction(
 
 /** Autosave. Deliberately quiet: a failed save must not interrupt the test. */
 export async function saveProgressAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser('student');
+  const user = await getCapableUser('tests:attempt');
 
   if (!user) return { ok: false, error: 'Please sign in' };
 
@@ -235,7 +235,7 @@ export async function saveProgressAction(input: unknown): Promise<ActionResult> 
 }
 
 export async function submitAttemptAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser('student');
+  const user = await getCapableUser('tests:attempt');
 
   if (!user) return { ok: false, error: 'Please sign in' };
 
@@ -260,7 +260,7 @@ export async function submitAttemptAction(input: unknown): Promise<ActionResult>
  * someone's test early.
  */
 export async function autoSubmitAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser('student');
+  const user = await getCapableUser('tests:attempt');
 
   if (!user) return { ok: false, error: 'Please sign in' };
 

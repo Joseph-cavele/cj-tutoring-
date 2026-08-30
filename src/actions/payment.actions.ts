@@ -2,7 +2,7 @@
 
 import { headers } from 'next/headers';
 
-import { getAuthorizedUser } from '@/lib/auth/guard';
+import { getCapableUser } from '@/lib/auth/guard';
 import {
   BookingPaymentError,
   startBookingCheckout,
@@ -20,7 +20,7 @@ import type { ActionResult } from '@/actions/booking.actions';
 export async function startBookingCheckoutAction(
   bookingId: unknown
 ): Promise<ActionResult<{ redirectUrl: string; reference: string }>> {
-  const user = await getAuthorizedUser(['student', 'parent', 'admin']);
+  const user = await getCapableUser('payments:checkout');
 
   if (!user) return { ok: false, error: 'Please sign in to pay for this lesson' };
 

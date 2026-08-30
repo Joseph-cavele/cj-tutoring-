@@ -107,9 +107,14 @@ describe('registerSchema', () => {
     expect(registerSchema.safeParse({ ...base, role: 'student', grade: 11 }).success).toBe(true);
   });
 
-  it('accepts parent and tutor without a grade', () => {
+  it('accepts a parent without a grade', () => {
     expect(registerSchema.safeParse({ ...base, role: 'parent' }).success).toBe(true);
-    expect(registerSchema.safeParse({ ...base, role: 'tutor' }).success).toBe(true);
+  });
+
+  it('refuses to let anyone register themselves as tutor', () => {
+    // The tutor role is the owner of the platform, so the only way in is the
+    // seed/setup script. Public registration must never mint one.
+    expect(registerSchema.safeParse({ ...base, role: 'tutor' }).success).toBe(false);
   });
 
   it('refuses to let anyone register themselves as admin', () => {

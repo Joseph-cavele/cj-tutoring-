@@ -99,7 +99,7 @@ for (const subject of Object.values(SUBJECTS)) {
  * Subjects that are not tied to a school grade.
  *
  * $setOnInsert throughout, so renaming or deactivating one through
- * /admin/subjects is not undone the next time this runs.
+ * /tutor/subjects is not undone the next time this runs.
  */
 const EXTRA_SUBJECTS = [
   {
@@ -151,12 +151,17 @@ console.log(
   finalSubjects.map((s) => `${s.name}${s.isActive ? '' : ' (inactive)'}`).join(', ')
 );
 
-const admins = await db.collection('users').countDocuments({ role: 'admin' });
+// The owner is the one account that cannot be made from inside the app:
+// registration only ever produces a pending student or parent.
+const owners = await db
+  .collection('users')
+  .countDocuments({ role: 'tutor', isActive: true });
 
-if (admins === 0) {
+if (owners === 0) {
   console.log(
-    '\nNo admin account exists yet. Register at /register, then set that user’s' +
-      '\n  role to "admin" in Atlas. Everything else is manageable in the app.'
+    '\nNo tutor account exists yet. Create the owner with:' +
+      '\n  OWNER_PASSWORD=... npm run make:owner -- you@example.com' +
+      '\n  Everything else is manageable in the app once you sign in.'
   );
 }
 

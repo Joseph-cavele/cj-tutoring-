@@ -33,7 +33,7 @@ export default async function BookingPage() {
   const session = await auth();
   const user = session?.user as SessionUser | undefined;
 
-  const canBook = user && ['student', 'parent', 'admin'].includes(user.role);
+  const canBook = user && ['student', 'parent', 'tutor'].includes(user.role);
 
   return (
     <section className="bg-brand-cream pb-16 lg:pb-24">

@@ -13,7 +13,7 @@ import {
   AccountToggle,
   ParentChildren,
   RoleControl,
-} from '@/components/admin/UserControls';
+} from '@/components/owner/UserControls';
 import DashboardSection, { StatTile } from '@/components/dashboard/DashboardSection';
 import { FIELD_CLASS, PRIMARY_BUTTON } from '@/components/booking/ui';
 
@@ -30,7 +30,7 @@ export const dynamic = 'force-dynamic';
 export default async function AdminUsersPage(props: {
   searchParams: Promise<{ role?: string; q?: string }>;
 }) {
-  const admin = await requireRole(STAFF_ROLES, '/admin/users');
+  const admin = await requireRole(STAFF_ROLES, '/tutor/accounts');
 
   // searchParams is a Promise in Next 16.
   const params = await props.searchParams;
@@ -60,7 +60,7 @@ export default async function AdminUsersPage(props: {
       <div className="mx-auto max-w-4xl space-y-6 px-4 sm:px-6 lg:px-8">
         <div>
           <Link
-            href="/admin/dashboard"
+            href="/tutor/dashboard"
             className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-brand-blue hover:underline"
           >
             <ArrowLeft className="size-4" aria-hidden="true" />
@@ -92,7 +92,7 @@ export default async function AdminUsersPage(props: {
         {/* A plain GET form, so a filtered view is a shareable URL and needs
             no client-side state. */}
         <form
-          action="/admin/users"
+          action="/tutor/accounts"
           className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-[var(--shadow-soft)] sm:flex-row"
         >
           <label className="flex-1">
@@ -271,7 +271,7 @@ function ProfileDetail({
           {profile.subjectCount === 1 ? '' : 's'}
         </p>
         <Link
-          href="/admin/tutors"
+          href="/tutor/team"
           className="mt-1 inline-block text-[13px] font-semibold text-brand-blue hover:underline"
         >
           Manage on the tutors page

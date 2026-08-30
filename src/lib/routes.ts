@@ -11,7 +11,6 @@ export const HOME_BY_ROLE: Record<Role, string> = {
   student: '/student/dashboard',
   tutor: '/tutor/dashboard',
   parent: '/parent/dashboard',
-  admin: '/admin/dashboard',
 };
 
 /** URL prefix owned by each role. Nobody else may enter it. */
@@ -19,7 +18,6 @@ export const SECTION_BY_ROLE: Record<Role, string> = {
   student: '/student',
   tutor: '/tutor',
   parent: '/parent',
-  admin: '/admin',
 };
 
 /**

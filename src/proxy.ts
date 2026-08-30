@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
-import type { Role } from '@/models/types';
+import { ROLES, type Role } from '@/models/types';
 import { homeForRole } from '@/lib/routes';
 import { STAFF_ROLES } from '@/lib/auth/roles';
 
@@ -53,15 +53,13 @@ const PUBLIC_ROUTES = [
 
 // URL prefix -> roles allowed to enter it.
 const ROLE_ROUTES: Record<string, readonly Role[]> = {
-  // CJ Tutoring is run by one tutor who is also the owner, so the tutor role
-  // reaches the business sections too. See @/lib/auth/roles.
-  '/admin': STAFF_ROLES,
-  // Staff only. A student or parent never reaches any /tutor screen - their
-  // own dashboards are the only place they belong.
+  // Staff only, and staff is the one tutor who owns the business. Everything
+  // that used to live under /admin is now a /tutor screen, so this single
+  // prefix guards the whole owner side. See @/lib/auth/roles.
   '/tutor': STAFF_ROLES,
   '/student': ['student'],
   '/parent': ['parent'],
-  '/dashboard': ['student', 'tutor', 'parent', 'admin'],
+  '/dashboard': ROLES,
 };
 
 /**

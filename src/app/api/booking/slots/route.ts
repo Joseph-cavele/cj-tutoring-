@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { getAuthorizedUser } from '@/lib/auth/guard';
+import { getCapableUser } from '@/lib/auth/guard';
 import { getAvailableSlots, getSlotMinutesForDate } from '@/services/availability.service';
 import { resolveBookingActor, BookingAccessError } from '@/lib/booking/access';
 import { slotQuerySchema, objectId } from '@/validations/lesson-booking';
@@ -13,7 +13,7 @@ import { slotQuerySchema, objectId } from '@/validations/lesson-booking';
  * calendar to discover when they have lessons.
  */
 export async function GET(request: Request) {
-  const user = await getAuthorizedUser(['student', 'parent', 'admin']);
+  const user = await getCapableUser('bookings:create');
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

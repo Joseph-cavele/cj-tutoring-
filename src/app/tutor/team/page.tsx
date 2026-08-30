@@ -7,7 +7,7 @@ import { connectDB } from '@/lib/mongodb';
 import { Subject } from '@/models';
 import { bookabilityBlockers, listTutorsForAdmin } from '@/services/tutor.service';
 import { MODE_LABELS } from '@/types/booking';
-import TutorApproval from '@/components/admin/TutorApproval';
+import TutorApproval from '@/components/owner/TutorApproval';
 import DashboardSection, { StatTile } from '@/components/dashboard/DashboardSection';
 
 export const dynamic = 'force-dynamic';
@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic';
  * leads the page - nothing about a tutor works until someone acts on it.
  */
 export default async function AdminTutorsPage() {
-  await requireRole(STAFF_ROLES, '/admin/tutors');
+  await requireRole(STAFF_ROLES, '/tutor/team');
 
   await connectDB();
 
@@ -45,7 +45,7 @@ export default async function AdminTutorsPage() {
       <div className="mx-auto max-w-4xl space-y-6 px-4 sm:px-6 lg:px-8">
         <div>
           <Link
-            href="/admin/dashboard"
+            href="/tutor/dashboard"
             className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-brand-blue hover:underline"
           >
             <ArrowLeft className="size-4" aria-hidden="true" />

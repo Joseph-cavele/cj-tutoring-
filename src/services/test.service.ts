@@ -10,6 +10,7 @@ import {
 } from '@/lib/assessment/constants';
 import { generateTest } from '@/lib/ai/assessment';
 import type { GenerateTestInput, SaveTestInput } from '@/validations/test';
+import { isStaff } from '@/lib/auth/roles';
 
 export class TestError extends Error {
   constructor(
@@ -155,7 +156,7 @@ export type TutorQuestionView = {
 export async function getTestForTutor(user: SessionUser, testId: string) {
   await connectDB();
 
-  const filter = user.role === 'admin' ? { _id: testId } : { _id: testId, createdBy: user.id };
+  const filter = isStaff(user.role) ? { _id: testId } : { _id: testId, createdBy: user.id };
 
   const test = await Test.findOne(filter)
     .populate<{ subject: { name: string } }>('subject', 'name')
@@ -206,7 +207,7 @@ export async function getTestForTutor(user: SessionUser, testId: string) {
 export async function saveTestDraft(user: SessionUser, input: SaveTestInput) {
   await connectDB();
 
-  const filter = user.role === 'admin'
+  const filter = isStaff(user.role)
     ? { _id: input.testId }
     : { _id: input.testId, createdBy: user.id };
 
@@ -252,7 +253,7 @@ export async function saveTestDraft(user: SessionUser, input: SaveTestInput) {
 export async function publishTest(user: SessionUser, testId: string) {
   await connectDB();
 
-  const filter = user.role === 'admin' ? { _id: testId } : { _id: testId, createdBy: user.id };
+  const filter = isStaff(user.role) ? { _id: testId } : { _id: testId, createdBy: user.id };
   const test = await Test.findOne(filter);
 
   if (!test) throw new TestError('That test was not found', 404);
@@ -275,7 +276,7 @@ export async function publishTest(user: SessionUser, testId: string) {
 export async function closeTest(user: SessionUser, testId: string) {
   await connectDB();
 
-  const filter = user.role === 'admin' ? { _id: testId } : { _id: testId, createdBy: user.id };
+  const filter = isStaff(user.role) ? { _id: testId } : { _id: testId, createdBy: user.id };
   const test = await Test.findOneAndUpdate(filter, { $set: { status: 'closed' } }, { new: true });
 
   if (!test) throw new TestError('That test was not found', 404);
@@ -287,7 +288,7 @@ export async function closeTest(user: SessionUser, testId: string) {
 export async function deleteTest(user: SessionUser, testId: string) {
   await connectDB();
 
-  const filter = user.role === 'admin' ? { _id: testId } : { _id: testId, createdBy: user.id };
+  const filter = isStaff(user.role) ? { _id: testId } : { _id: testId, createdBy: user.id };
   const test = await Test.findOne(filter).select('_id status');
 
   if (!test) throw new TestError('That test was not found', 404);
@@ -404,7 +405,7 @@ export async function getTestSubmissions(
 ): Promise<SubmissionView[]> {
   await connectDB();
 
-  const filter = user.role === 'admin' ? { _id: testId } : { _id: testId, createdBy: user.id };
+  const filter = isStaff(user.role) ? { _id: testId } : { _id: testId, createdBy: user.id };
   const test = await Test.findOne(filter).select('_id').lean();
 
   if (!test) return [];

@@ -3,8 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 
-import { getAuthorizedUser } from '@/lib/auth/guard';
-import { STAFF_ROLES } from '@/lib/auth/roles';
+import { getCapableUser } from '@/lib/auth/guard';
 import {
   BookingError,
   adminSetBookingStatus,
@@ -55,7 +54,7 @@ const paths = {
   student: '/student/dashboard',
   parent: '/parent/dashboard',
   tutor: '/tutor/dashboard',
-  admin: '/admin/dashboard',
+
 };
 
 /** Both sides of a booking need refreshing after any change. */
@@ -76,7 +75,7 @@ export async function createBookingAction(
 > {
   // Tutors are excluded here as well as in the service: a booking is something
   // done for a student, not by a teacher.
-  const user = await getAuthorizedUser(['student', 'parent', 'admin']);
+  const user = await getCapableUser('bookings:create');
 
   if (!user) return failure('Please sign in to book a lesson');
 
@@ -113,7 +112,7 @@ export async function createBookingAction(
 
 /** Tutor accepts or rejects. Rule 7: only the assigned tutor. */
 export async function decideBookingAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser('tutor');
+  const user = await getCapableUser('bookings:decide');
 
   if (!user) return failure('Only a tutor can answer a booking request');
 
@@ -131,7 +130,7 @@ export async function decideBookingAction(input: unknown): Promise<ActionResult>
 }
 
 export async function cancelBookingAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser();
+  const user = await getCapableUser('bookings:cancel');
 
   if (!user) return failure('Please sign in');
 
@@ -149,7 +148,7 @@ export async function cancelBookingAction(input: unknown): Promise<ActionResult>
 }
 
 export async function adminSetBookingStatusAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser(STAFF_ROLES);
+  const user = await getCapableUser('bookings:override');
 
   if (!user) return failure('Only the tutor or an admin can do that');
 
@@ -168,7 +167,7 @@ export async function adminSetBookingStatusAction(input: unknown): Promise<Actio
 
 /** A tutor edits their own weekly availability, and nobody else's. */
 export async function saveAvailabilityAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser('tutor');
+  const user = await getCapableUser('availability:manage');
 
   if (!user) return failure('Only a tutor can set availability');
 
@@ -208,7 +207,7 @@ export async function saveAvailabilityAction(input: unknown): Promise<ActionResu
 export async function addChildAction(
   input: unknown
 ): Promise<ActionResult<{ studentId: string; name: string; invited: boolean }>> {
-  const user = await getAuthorizedUser('parent');
+  const user = await getCapableUser('children:add');
 
   if (!user) return failure('Only a parent can add a child');
 

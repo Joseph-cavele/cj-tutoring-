@@ -4,17 +4,21 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { GraduationCap, Loader2, UserRound, Users } from 'lucide-react';
+import { GraduationCap, Loader2, Users } from 'lucide-react';
 
 import { GRADES } from '@/lib/curriculum';
 import { registerSchema, type RegisterInput, type SignupRole } from '@/validations/auth';
 import { AUTH_FIELD_CLASS } from './AuthShell';
 
+/**
+ * Who may sign themselves up. Mirrors SIGNUP_ROLES, which is the schema that
+ * actually enforces it - there is no Tutor option because the tutor owns the
+ * platform and that account is made from the command line, not a public form.
+ */
 const ROLE_OPTIONS = [
   { value: 'student', label: 'Student', hint: 'I am the learner', icon: GraduationCap },
   { value: 'parent', label: 'Parent', hint: 'I am signing up for my child', icon: Users },
-  { value: 'tutor', label: 'Tutor', hint: 'I want to teach', icon: UserRound },
-] as const;
+] as const satisfies readonly { value: SignupRole; label: string; hint: string; icon: typeof Users }[];
 
 export default function RegisterForm() {
   const router = useRouter();
@@ -102,7 +106,7 @@ export default function RegisterForm() {
         <legend className="text-[14px] font-semibold text-brand-navy">
           I am signing up as
         </legend>
-        <div className="mt-2 grid gap-2 sm:grid-cols-3">
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
           {ROLE_OPTIONS.map((option) => {
             const Icon = option.icon;
             const isSelected = role === option.value;

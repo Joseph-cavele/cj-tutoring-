@@ -2,8 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { getAuthorizedUser } from '@/lib/auth/guard';
-import { STAFF_ROLES } from '@/lib/auth/roles';
+import { getCapableUser } from '@/lib/auth/guard';
 import {
   SubjectError,
   createSubject,
@@ -32,13 +31,13 @@ function fromError(error: unknown): ActionResult<never> {
 }
 
 function refresh() {
-  revalidatePath('/admin/subjects');
+  revalidatePath('/tutor/subjects');
   // The booking wizard reads the same list.
   revalidatePath('/booking');
 }
 
 export async function createSubjectAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser(STAFF_ROLES);
+  const user = await getCapableUser('subjects:manage');
 
   if (!user) return { ok: false, error: 'Only the tutor or an admin can manage subjects' };
 
@@ -65,7 +64,7 @@ export async function createSubjectAction(input: unknown): Promise<ActionResult>
 }
 
 export async function updateSubjectAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser(STAFF_ROLES);
+  const user = await getCapableUser('subjects:manage');
 
   if (!user) return { ok: false, error: 'Only the tutor or an admin can manage subjects' };
 
@@ -94,7 +93,7 @@ export async function updateSubjectAction(input: unknown): Promise<ActionResult>
 }
 
 export async function deleteSubjectAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser(STAFF_ROLES);
+  const user = await getCapableUser('subjects:manage');
 
   if (!user) return { ok: false, error: 'Only the tutor or an admin can manage subjects' };
 

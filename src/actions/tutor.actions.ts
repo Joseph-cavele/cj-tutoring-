@@ -2,8 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { getAuthorizedUser } from '@/lib/auth/guard';
-import { STAFF_ROLES } from '@/lib/auth/roles';
+import { getCapableUser } from '@/lib/auth/guard';
 import {
   TutorError,
   adminUpdateTutor,
@@ -37,13 +36,13 @@ function fromError(error: unknown): ActionResult<never> {
 function refresh() {
   revalidatePath('/tutor/profile');
   revalidatePath('/tutor/dashboard');
-  revalidatePath('/admin/tutors');
+  revalidatePath('/tutor/team');
   // The booking wizard reads the tutor list and their rates.
   revalidatePath('/booking');
 }
 
 export async function updateTutorProfileAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser('tutor');
+  const user = await getCapableUser('tutor-profile:manage');
 
   if (!user) return { ok: false, error: 'Only a tutor can edit a tutor profile' };
 
@@ -71,7 +70,7 @@ export async function updateTutorProfileAction(input: unknown): Promise<ActionRe
 
 /** Approve or suspend. Admin only (brief section 12). */
 export async function setTutorApprovalAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser(STAFF_ROLES);
+  const user = await getCapableUser('tutor-records:manage');
 
   if (!user) return { ok: false, error: 'Only the tutor or an admin can approve tutors' };
 
@@ -90,7 +89,7 @@ export async function setTutorApprovalAction(input: unknown): Promise<ActionResu
 
 /** Admin fills in a tutor's rate and subjects so they can be booked. */
 export async function adminUpdateTutorAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser(STAFF_ROLES);
+  const user = await getCapableUser('tutor-records:manage');
 
   if (!user) return { ok: false, error: 'Only the tutor or an admin can edit tutor details' };
 

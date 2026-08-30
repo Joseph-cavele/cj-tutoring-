@@ -73,9 +73,9 @@ const WELCOME_BY_ROLE: Record<Role, string> = {
     'Thank you for applying to join CJ Private Tutoring as a student. Your tutor will review your application, and we will email you as soon as it is accepted. You can sign in and book your first lesson from that moment.',
   parent:
     'Thank you for applying to join CJ Private Tutoring as a parent. Your tutor will review your application, and we will email you as soon as it is accepted. You can then sign in, have your children linked and follow their lessons, attendance, results and invoices from one place.',
-  tutor:
-    'Thank you for registering as a tutor. Your details will be checked before your account is activated, and we will email you as soon as that is done.',
-  admin: 'Your administrator account is ready.',
+  // The owner account is created by script, so it never sends this mail. The
+  // map still covers the role because it is keyed by Role.
+  tutor: 'Your CJ Private Tutoring owner account is ready.',
 };
 
 /**
@@ -84,14 +84,14 @@ const WELCOME_BY_ROLE: Record<Role, string> = {
  * Every self-registration is an application now, not a working account, so
  * this deliberately does not link to a dashboard - the link would lead to a
  * login that refuses them. The decision email carries the call to action
- * instead. An admin never arrives here, but the map covers the role anyway.
+ * instead. The owner never arrives here, but the map covers the role anyway.
  */
 export async function notifyAccountCreated(params: {
   to: string;
   name: string;
   role: Role;
 }): Promise<boolean> {
-  const awaitingApproval = params.role !== 'admin';
+  const awaitingApproval = params.role !== 'tutor';
 
   return deliver('account created', {
     to: params.to,

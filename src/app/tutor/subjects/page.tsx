@@ -4,13 +4,13 @@ import { ArrowLeft } from 'lucide-react';
 import { requireRole } from '@/lib/auth/guard';
 import { STAFF_ROLES } from '@/lib/auth/roles';
 import { listSubjectsForAdmin } from '@/services/subject.service';
-import SubjectManager from '@/components/admin/SubjectManager';
+import SubjectManager from '@/components/owner/SubjectManager';
 
 export const dynamic = 'force-dynamic';
 
 /** Subject management (brief sections 5 and 12). Admin only. */
 export default async function AdminSubjectsPage() {
-  await requireRole(STAFF_ROLES, '/admin/subjects');
+  await requireRole(STAFF_ROLES, '/tutor/subjects');
 
   const subjects = await listSubjectsForAdmin();
 
@@ -18,7 +18,7 @@ export default async function AdminSubjectsPage() {
     <section className="bg-brand-cream py-10 lg:py-14">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <Link
-          href="/admin/dashboard"
+          href="/tutor/dashboard"
           className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-brand-blue hover:underline"
         >
           <ArrowLeft className="size-4" aria-hidden="true" />

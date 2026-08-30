@@ -27,7 +27,7 @@ export const dynamic = 'force-dynamic';
 export default async function AdminPaymentsPage(props: {
   searchParams: Promise<{ status?: string; q?: string }>;
 }) {
-  await requireRole(STAFF_ROLES, '/admin/payments');
+  await requireRole(STAFF_ROLES, '/tutor/payments');
 
   // searchParams is a Promise in Next 16.
   const params = await props.searchParams;
@@ -49,7 +49,7 @@ export default async function AdminPaymentsPage(props: {
       <div className="mx-auto max-w-5xl space-y-6 px-4 sm:px-6 lg:px-8">
         <div>
           <Link
-            href="/admin/dashboard"
+            href="/tutor/dashboard"
             className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-brand-blue hover:underline"
           >
             <ArrowLeft className="size-4" aria-hidden="true" />
@@ -100,7 +100,7 @@ export default async function AdminPaymentsPage(props: {
               approval. Cancel them from the bookings page to free the slots.
             </p>
             <Link
-              href="/admin/bookings?status=pending"
+              href="/tutor/bookings?status=pending"
               className="mt-3 inline-flex min-h-11 items-center rounded-full border-[1.5px] border-brand-blue bg-white px-4 text-[14px] font-semibold text-brand-blue hover:bg-brand-blue-50"
             >
               Review pending bookings
@@ -109,7 +109,7 @@ export default async function AdminPaymentsPage(props: {
         ) : null}
 
         <form
-          action="/admin/payments"
+          action="/tutor/payments"
           className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-[var(--shadow-soft)] sm:flex-row"
         >
           <label className="flex-1">

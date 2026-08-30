@@ -2,8 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { getAuthorizedUser } from '@/lib/auth/guard';
-import { STAFF_ROLES } from '@/lib/auth/roles';
+import { getCapableUser } from '@/lib/auth/guard';
 import { ApplicationError, decideApplication } from '@/services/application.service';
 import { applicationDecisionSchema } from '@/validations/application';
 import type { ActionResult } from '@/actions/booking.actions';
@@ -24,7 +23,7 @@ function fromError(error: unknown): ActionResult<never> {
 }
 
 export async function decideApplicationAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser(STAFF_ROLES);
+  const user = await getCapableUser('applications:decide');
 
   if (!user) return { ok: false, error: 'Only the tutor or an admin can answer applications' };
 
@@ -39,7 +38,7 @@ export async function decideApplicationAction(input: unknown): Promise<ActionRes
     // The dashboard carries the waiting count, and an accepted account shows
     // up on the accounts screen as active.
     revalidatePath('/tutor/dashboard');
-    revalidatePath('/admin/users');
+    revalidatePath('/tutor/accounts');
 
     return { ok: true };
   } catch (error) {

@@ -3,6 +3,7 @@ import { Result, Student, Test } from '@/models';
 import type { SessionUser } from '@/lib/auth/guard';
 import { parentProfileFor, studentProfileFor } from '@/lib/booking/access';
 import { gradeSymbol } from '@/lib/assessment/constants';
+import { isStaff } from '@/lib/auth/roles';
 
 /**
  * Performance reporting (brief section 10).
@@ -211,10 +212,10 @@ export async function getChildrenPerformance(
 export async function getStudentsForTutor(user: SessionUser): Promise<StudentPerformance[]> {
   await connectDB();
 
-  if (user.role !== 'tutor' && user.role !== 'admin') return [];
+  if (user.role !== 'tutor' && !isStaff(user.role)) return [];
 
   const tests = await Test.find(
-    user.role === 'admin' ? {} : { createdBy: user.id }
+    isStaff(user.role) ? {} : { createdBy: user.id }
   )
     .select('_id')
     .lean();

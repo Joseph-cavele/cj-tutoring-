@@ -6,7 +6,7 @@ import { STAFF_ROLES } from '@/lib/auth/roles';
 import { listBookings } from '@/services/lesson-booking.service';
 import { BOOKING_STATUSES, type BookingStatus } from '@/models/Booking';
 import BookingCard from '@/components/booking/BookingCard';
-import BookingStatusControl from '@/components/admin/BookingStatusControl';
+import BookingStatusControl from '@/components/owner/BookingStatusControl';
 import DashboardSection, { StatTile } from '@/components/dashboard/DashboardSection';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +21,7 @@ export const dynamic = 'force-dynamic';
 export default async function AdminBookingsPage(props: {
   searchParams: Promise<{ status?: string }>;
 }) {
-  const user = await requireRole(STAFF_ROLES, '/admin/bookings');
+  const user = await requireRole(STAFF_ROLES, '/tutor/bookings');
 
   // searchParams is a Promise in Next 16.
   const params = await props.searchParams;
@@ -45,7 +45,7 @@ export default async function AdminBookingsPage(props: {
       <div className="mx-auto max-w-5xl space-y-6 px-4 sm:px-6 lg:px-8">
         <div>
           <Link
-            href="/admin/dashboard"
+            href="/tutor/dashboard"
             className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-brand-blue hover:underline"
           >
             <ArrowLeft className="size-4" aria-hidden="true" />
@@ -75,11 +75,11 @@ export default async function AdminBookingsPage(props: {
         ) : null}
 
         <nav aria-label="Filter by status" className="flex flex-wrap gap-2">
-          <FilterLink href="/admin/bookings" active={!filter} label="All" />
+          <FilterLink href="/tutor/bookings" active={!filter} label="All" />
           {BOOKING_STATUSES.map((status) => (
             <FilterLink
               key={status}
-              href={`/admin/bookings?status=${status}`}
+              href={`/tutor/bookings?status=${status}`}
               active={filter === status}
               label={status}
             />
@@ -101,7 +101,7 @@ export default async function AdminBookingsPage(props: {
               <li key={booking.id}>
                 <BookingCard
                   booking={booking}
-                  perspective="admin"
+                  perspective="owner"
                   showPayment
                   actions={
                     <BookingStatusControl
