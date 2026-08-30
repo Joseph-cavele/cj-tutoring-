@@ -21,7 +21,10 @@ import { validateProposedLesson } from '@/services/availability.service';
 import { addMinutes, isInPast, toDateOnly, toIsoDate } from '@/lib/availability/slots';
 import { isPaymentConfigured } from '@/lib/payments';
 import { cancelMeetingForBooking, createMeetingForBooking } from '@/services/zoom.service';
-import { notifyBookingCreated } from '@/services/notification.service';
+import {
+  notifyBookingCreated,
+  notifyBookingDecision,
+} from '@/services/notification.service';
 import type { CreateBookingInput } from '@/validations/lesson-booking';
 
 export class BookingError extends Error {
@@ -398,6 +401,18 @@ export async function decideBooking(
     if (input.decision === 'accepted') {
       await createMeetingForBooking(booking._id.toString());
     }
+
+    /**
+     * Tell the family. Deliberately after the save and after the meeting, so
+     * an accepted lesson already has its joining link by the time anyone is
+     * told about it - and, like the Zoom call above, this never throws: the
+     * decision stands whether or not the message goes out.
+     */
+    await notifyBookingDecision(
+      booking._id.toString(),
+      input.decision,
+      input.note ?? null
+    );
 
     return { bookingId: booking._id.toString(), status: booking.status };
   } catch (error) {

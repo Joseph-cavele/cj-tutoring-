@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ArrowRight, GraduationCap, Menu, X } from 'lucide-react';
+import { ArrowRight, Bell, GraduationCap, Menu, X } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { useScrolled } from '@/hooks/use-scrolled';
@@ -26,6 +26,8 @@ import LogoutButton from '@/components/LogoutButton';
 export type NavbarShellProps = {
   /** Resolved on the server from the session cookie. */
   isSignedIn: boolean;
+  /** Unread notifications, counted on the server. Zero when signed out. */
+  unreadCount: number;
 };
 
 /**
@@ -38,7 +40,7 @@ export type NavbarShellProps = {
  * Auth state arrives as props rather than being read here, so the session
  * lookup stays on the server and this file ships no session logic.
  */
-export function NavbarShell({ isSignedIn }: NavbarShellProps) {
+export function NavbarShell({ isSignedIn, unreadCount }: NavbarShellProps) {
   const pathname = usePathname();
   const isScrolled = useScrolled();
   const [isOpen, setIsOpen] = useState(false);
@@ -85,7 +87,27 @@ export function NavbarShell({ isSignedIn }: NavbarShellProps) {
           {isSignedIn ? (
             // No dashboard shortcut in the public header. The dashboard is
             // reached by signing in, never by a link sitting on every page.
-            <LogoutButton className="hidden sm:inline-flex" />
+            // The bell is the exception: it is how somebody finds out a lesson
+            // was confirmed without opening their email.
+            <>
+              <Link
+                href="/notifications"
+                aria-label={
+                  unreadCount > 0
+                    ? `Notifications, ${unreadCount} unread`
+                    : 'Notifications'
+                }
+                className="relative inline-flex size-11 items-center justify-center rounded-full text-brand-navy transition-colors hover:bg-brand-blue-50"
+              >
+                <Bell className="size-5" aria-hidden="true" />
+                {unreadCount > 0 ? (
+                  <span className="absolute top-1.5 right-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-brand-amber px-1 text-[10px] font-bold text-brand-navy">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                ) : null}
+              </Link>
+              <LogoutButton className="hidden sm:inline-flex" />
+            </>
           ) : (
             <>
               {/* Held back to lg: brand + three pills + the hamburger overflows

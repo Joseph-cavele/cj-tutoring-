@@ -1,4 +1,5 @@
 import { connectDB } from '@/lib/mongodb';
+import { notifyInApp } from '@/services/inbox.service';
 import { Booking, Package, Payment, User } from '@/models';
 import type { Role } from '@/models/types';
 import { CONTACT } from '@/lib/contact';
@@ -237,11 +238,16 @@ type BookingParties = {
   subjectName: string;
   studentName: string;
   studentEmail?: string;
+  /** User ids, so an in-app notification reuses this query rather than
+   *  repeating the three joins to find out who to tell. */
+  studentUserId?: string;
   tutorName: string;
   tutorEmail?: string;
+  tutorUserId?: string;
   /** Set only when a parent placed the booking. */
   parentName?: string;
   parentEmail?: string;
+  parentUserId?: string;
 };
 
 /** Loads the people and the facts an email about a lesson needs. */
@@ -267,9 +273,16 @@ async function loadBookingParties(bookingId: string): Promise<BookingParties | n
     })
     .lean();
 
+
   if (!booking) return null;
 
-  type Party = { user?: { name?: string; email?: string } } | null | undefined;
+  type Party =
+    | { user?: { _id?: unknown; name?: string; email?: string } }
+    | null
+    | undefined;
+
+  const userIdOf = (party: Party) =>
+    party?.user?._id ? String(party.user._id) : undefined;
 
   const student = booking.student as unknown as Party;
   const parent = booking.parent as unknown as Party;
@@ -291,10 +304,13 @@ async function loadBookingParties(bookingId: string): Promise<BookingParties | n
     subjectName: booking.subject?.name ?? 'Tutoring',
     studentName: student?.user?.name ?? 'Student',
     studentEmail: student?.user?.email,
+    studentUserId: userIdOf(student),
     tutorName: tutor?.user?.name ?? 'Your tutor',
     tutorEmail: tutor?.user?.email,
+    tutorUserId: userIdOf(tutor),
     parentName: parent?.user?.name,
     parentEmail: parent?.user?.email,
+    parentUserId: userIdOf(parent),
   };
 }
 
@@ -386,6 +402,33 @@ export async function notifyBookingCreated(bookingId: string): Promise<void> {
     });
   }
 
+  // In-app copies of the same two messages. Written after the emails and
+  // never in place of them: email reaches somebody who is not on the site,
+  // the bell reaches somebody who is.
+  const bookerUserId = parties.parentUserId ?? parties.studentUserId;
+
+  if (bookerUserId) {
+    await notifyInApp({
+      userId: bookerUserId,
+      type: 'booking_requested',
+      title: `Lesson requested: ${parties.subjectName}`,
+      body: nextStep,
+      link: HOME_BY_ROLE[bookerRole],
+    });
+  }
+
+  if (parties.tutorUserId) {
+    await notifyInApp({
+      userId: parties.tutorUserId,
+      type: 'booking_requested',
+      title: `New lesson request from ${parties.studentName}`,
+      body: `${parties.subjectName} on ${formatBookingDate(
+        booking.date.toISOString().slice(0, 10)
+      )} at ${booking.startTime}.`,
+      link: '/tutor/bookings?status=pending',
+    });
+  }
+
   // The office copy, so a booking is visible without opening the admin area.
   await deliver('booking office notice', {
     subject: `New booking: ${parties.studentName} - ${parties.subjectName}`,
@@ -443,6 +486,8 @@ export async function notifyTrialRequestReceived(params: {
 
 type ReceiptPayload = {
   to?: string;
+  /** Payer's user id, for the in-app copy. */
+  userId?: string;
   name: string;
   role: Role;
   reference: string;
@@ -495,6 +540,7 @@ export async function notifyPaymentReceived(paymentId: string): Promise<void> {
 
     payload = {
       to: payer?.email,
+      userId: payer?._id ? String(payer._id) : undefined,
       name: payer?.name ?? 'there',
       role: (payer?.role as Role) ?? 'student',
       reference: payment.reference,
@@ -526,6 +572,16 @@ export async function notifyPaymentReceived(paymentId: string): Promise<void> {
     },
   ];
 
+  if (payload.userId) {
+    await notifyInApp({
+      userId: payload.userId,
+      type: 'payment_received',
+      title: `Payment received - ${money}`,
+      body: `${payload.what}. Reference ${payload.reference}.`,
+      link: HOME_BY_ROLE[payload.role],
+    });
+  }
+
   if (payload.to) {
     await deliver('payment receipt', {
       to: payload.to,
@@ -550,4 +606,87 @@ export async function notifyPaymentReceived(paymentId: string): Promise<void> {
       details: [{ label: 'From', value: payload.name }, ...receiptDetails],
     },
   });
+}
+
+/* -------------------------------------------------------------------------- */
+/* A booking accepted or declined                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Tells the family what the tutor decided (brief section 26).
+ *
+ * Nothing told them before this existed. A student whose lesson was accepted -
+ * or declined - found out by opening the dashboard and noticing, which for a
+ * declined lesson could mean turning up to nothing.
+ *
+ * Reaches the parent when one placed the booking and the student otherwise,
+ * matching who gets the confirmation email, so the person who made the
+ * arrangement is the person who hears about it.
+ */
+export async function notifyBookingDecision(
+  bookingId: string,
+  decision: 'accepted' | 'rejected',
+  note?: string | null
+): Promise<void> {
+  let parties: BookingParties | null;
+
+  try {
+    parties = await loadBookingParties(bookingId);
+  } catch (error) {
+    console.error('[notify] could not load booking', bookingId, error);
+    return;
+  }
+
+  if (!parties) return;
+
+  const { booking } = parties;
+  const accepted = decision === 'accepted';
+  const details = lessonDetails(parties);
+
+  const bookerEmail = parties.parentEmail ?? parties.studentEmail;
+  const bookerName = parties.parentEmail ? parties.parentName : parties.studentName;
+  const bookerRole: Role = parties.parentEmail ? 'parent' : 'student';
+  const bookerUserId = parties.parentUserId ?? parties.studentUserId;
+
+  const forWhom = parties.parentEmail ? ` for ${parties.studentName}` : '';
+
+  if (bookerEmail) {
+    await deliver('booking decision', {
+      to: bookerEmail,
+      subject: accepted
+        ? `Lesson confirmed: ${parties.subjectName}`
+        : `Lesson request declined: ${parties.subjectName}`,
+      content: {
+        heading: accepted ? 'Your lesson is confirmed' : 'That lesson could not go ahead',
+        greeting: `Hi ${bookerName ?? 'there'},`,
+        intro: [
+          accepted
+            ? `${parties.tutorName} has accepted the lesson${forWhom}.`
+            : `${parties.tutorName} is not able to teach the lesson${forWhom}.`,
+        ],
+        details,
+        cta: ctaFor(bookerRole, accepted ? 'View your lesson' : 'Book another time'),
+        outro: [
+          ...(note ? [`Message from your tutor: ${note}`] : []),
+          accepted
+            ? 'A joining link appears on your dashboard for an online lesson.'
+            : 'You are welcome to book another time that suits you both.',
+        ],
+      },
+    });
+  }
+
+  if (bookerUserId) {
+    await notifyInApp({
+      userId: bookerUserId,
+      type: accepted ? 'booking_accepted' : 'booking_rejected',
+      title: accepted
+        ? `Lesson confirmed: ${parties.subjectName}`
+        : `Lesson declined: ${parties.subjectName}`,
+      body: `${formatBookingDate(booking.date.toISOString().slice(0, 10))} at ${
+        booking.startTime
+      }${note ? ` - ${note}` : ''}`,
+      link: HOME_BY_ROLE[bookerRole],
+    });
+  }
 }
