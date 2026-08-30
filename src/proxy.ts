@@ -87,11 +87,13 @@ export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
   // Read the session cookie. Returns null when absent, expired, or tampered with.
+  const isSecure = process.env.NODE_ENV === 'production';
   const token = await getToken({
     req: request,
     secret: process.env.AUTH_SECRET,
     // NextAuth prefixes the cookie with __Secure- over HTTPS.
-    secureCookie: process.env.NODE_ENV === 'production',
+    secureCookie: isSecure,
+    salt: isSecure ? '__Secure-authjs.session-token' : 'authjs.session-token',
   });
 
   const role = token?.role as Role | undefined;
