@@ -12,6 +12,7 @@ export { default as Subject, type ISubject } from './Subject';
 export { default as Topic, type ITopic } from './Topic';
 export { default as Class, type IClass } from './Class';
 export { default as Attendance, type IAttendance } from './Attendance';
+export { default as Lesson, type ILesson, type LessonProgress } from './Lesson';
 
 export { default as Assignment, type IAssignment } from './Assignment';
 export {
