@@ -5,7 +5,7 @@
  * templates all read from here, so a number only ever changes in one place.
  */
 export const CONTACT = {
-  email: 'cjprivatetutoring@gmail.com',
+  email: 'support@cjprivatetutoring.co.za',
 
   phone: {
     /** How it reads on the page, in the usual South African grouping. */

@@ -74,6 +74,31 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return token;
     },
 
+    /**
+     * Keeps post-auth navigation on whichever origin the browser is already on.
+     *
+     * Next normalises request.url to localhost, so NextAuth derives
+     * baseUrl = http://localhost:3000 even when the page was opened from a
+     * phone at http://192.168.x.x:3000. Any absolute URL built from that
+     * baseUrl sends the handset to itself, which is a dead address - it broke
+     * the sign-out button on mobile.
+     *
+     * Reducing every target to a path sidesteps the host question entirely,
+     * and closes the open redirect at the same time: an off-site callbackUrl
+     * becomes a path on this site rather than a jump to someone else's.
+     */
+    async redirect({ url }) {
+      if (url.startsWith('/')) return url;
+
+      try {
+        const target = new URL(url);
+        return `${target.pathname}${target.search}` || '/';
+      } catch {
+        // Not a URL at all, so there is nothing safe to honour.
+        return '/';
+      }
+    },
+
     // Copies those fields onto the session object used by server components.
     async session({ session, token }) {
       if (session.user) {
