@@ -25,8 +25,8 @@ export const dynamic = 'force-dynamic';
  * for "what is actually happening, and let me act on it". The grid is dots and
  * numbers only, which is all that fits in a 45px cell on a 375px screen.
  *
- * Tests are not on here yet - the Test model carries no scheduled date, so
- * there is nothing to plot. That arrives with the test timetable.
+ * Scheduled tests come through the calendar service from the timetable, so
+ * the two screens cannot disagree about when a test sits.
  */
 
 const DAY_LABEL = new Intl.DateTimeFormat('en-ZA', {
@@ -70,7 +70,7 @@ export default async function TutorCalendarPage(props: {
 
   // The agenda only lists days worth acting on.
   const agenda = calendar.days.filter(
-    (day) => day.inMonth && (day.bookings.length > 0 || day.timeOff)
+    (day) => day.inMonth && (day.bookings.length > 0 || day.timeOff || day.tests.length > 0)
   );
 
   return (
@@ -93,7 +93,7 @@ export default async function TutorCalendarPage(props: {
           </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <StatTile label="Confirmed" value={calendar.totals.accepted} detail="this month" />
           <StatTile
             label="Pending"
@@ -102,6 +102,7 @@ export default async function TutorCalendarPage(props: {
             highlight={calendar.totals.pending > 0}
           />
           <StatTile label="Completed" value={calendar.totals.completed} detail="taught" />
+          <StatTile label="Tests" value={calendar.totals.tests} detail="scheduled" />
           <StatTile label="Days off" value={calendar.totals.daysOff} detail="blocked" />
         </div>
 
@@ -229,6 +230,12 @@ function DayCell({ day }: { day: CalendarDay }) {
         <span className="text-[9px] font-bold tracking-wide text-red-700 uppercase">Off</span>
       ) : null}
 
+      {day.inMonth && day.tests.length > 0 ? (
+        <span className="rounded-full bg-brand-navy px-1.5 text-[9px] font-bold text-white">
+          {day.tests.length === 1 ? 'TEST' : `${day.tests.length} TESTS`}
+        </span>
+      ) : null}
+
       {day.inMonth && dots.length > 0 ? (
         <span className="flex flex-wrap justify-center gap-0.5">
           {dots.map((booking) => (
@@ -243,6 +250,9 @@ function DayCell({ day }: { day: CalendarDay }) {
 
       <span className="sr-only">
         {day.bookings.length} lesson{day.bookings.length === 1 ? '' : 's'}
+        {day.tests.length > 0
+          ? `, ${day.tests.length} test${day.tests.length === 1 ? '' : 's'}`
+          : ''}
         {day.timeOff ? ', day blocked' : ''}
       </span>
     </div>
@@ -258,6 +268,10 @@ function Legend() {
           <span className="text-brand-slate">{STATUS_STYLE[status].label}</span>
         </span>
       ))}
+      <span className="inline-flex items-center gap-1.5">
+        <span className="size-2 rounded-full bg-brand-navy" aria-hidden="true" />
+        <span className="text-brand-slate">Test</span>
+      </span>
       <span className="inline-flex items-center gap-1.5">
         <span className="size-2 rounded-full bg-red-300" aria-hidden="true" />
         <span className="text-brand-slate">Blocked day</span>
@@ -292,6 +306,31 @@ function AgendaDay({ day }: { day: CalendarDay }) {
         ) : null}
       </header>
 
+      {day.tests.length > 0 ? (
+        <ul className="mt-3 space-y-2">
+          {day.tests.map((test) => (
+            <li
+              key={test.testId}
+              className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-xl bg-brand-navy/5 p-3"
+            >
+              <span className="font-mono text-[14px] font-bold text-brand-navy">
+                {test.timeLabel}
+              </span>
+              <span className="rounded-full bg-brand-navy px-2 py-0.5 text-[11px] font-bold tracking-wide text-white uppercase">
+                Test
+              </span>
+              <span className="text-[14px] font-semibold text-brand-navy">
+                {test.gradeName} {test.subjectName}
+              </span>
+              <span className="text-[14px] text-brand-slate">{test.topic ?? test.title}</span>
+              {test.isDraft ? (
+                <span className="text-[13px] font-bold text-brand-amber-text">Draft</span>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
       {day.bookings.length > 0 ? (
         <ul className="mt-3 space-y-2">
           {day.bookings.map((booking) => (
@@ -300,9 +339,9 @@ function AgendaDay({ day }: { day: CalendarDay }) {
             </li>
           ))}
         </ul>
-      ) : (
+      ) : day.tests.length === 0 ? (
         <p className="mt-2 text-[14px] text-brand-slate">No lessons booked.</p>
-      )}
+      ) : null}
 
       {/* Past days cannot usefully be blocked or reopened. */}
       {!day.isPast ? (

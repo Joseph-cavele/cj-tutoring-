@@ -79,6 +79,8 @@ export default async function TutorTestPage(props: {
             initialDescription={test.description}
             initialTopic={test.topic}
             initialDuration={test.durationMinutes}
+            initialAvailableFrom={test.availableFrom}
+            initialAvailableUntil={test.availableUntil}
             isDraft={test.status === 'draft'}
             initialQuestions={test.questions.map((question) => ({
               questionId: question.questionId,

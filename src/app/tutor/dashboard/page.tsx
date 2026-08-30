@@ -279,6 +279,12 @@ export default async function TutorDashboard() {
             body="Your month at a glance, and the days you are not teaching."
           />
           <SectionLink
+            href="/tutor/timetable"
+            icon={<GraduationCap className="size-5" />}
+            title="Test timetable"
+            body="Every test with a scheduled sitting, drafts included."
+          />
+          <SectionLink
             href="/tutor/availability"
             icon={<CalendarClock className="size-5" />}
             title="Availability"

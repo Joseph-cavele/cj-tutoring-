@@ -11,6 +11,7 @@ import {
 import { generateTest } from '@/lib/ai/assessment';
 import type { GenerateTestInput, SaveTestInput } from '@/validations/test';
 import { isStaff } from '@/lib/auth/roles';
+import { sastLocalToUtc, utcToSastLocal } from '@/lib/assessment/schedule';
 
 export class TestError extends Error {
   constructor(
@@ -181,6 +182,10 @@ export async function getTestForTutor(user: SessionUser, testId: string) {
     difficulty: test.difficulty,
     status: test.status as TestStatus,
     durationMinutes: test.durationMinutes,
+    // Back to the tutor's wall clock, so the datetime-local input shows the
+    // time they typed rather than the stored UTC instant.
+    availableFrom: test.availableFrom ? utcToSastLocal(test.availableFrom) : '',
+    availableUntil: test.availableUntil ? utcToSastLocal(test.availableUntil) : '',
     totalMarks: test.totalMarks,
     isAiGenerated: test.isAiGenerated,
     questions: questions.map<TutorQuestionView>((question) => ({
@@ -226,6 +231,23 @@ export async function saveTestDraft(user: SessionUser, input: SaveTestInput) {
   test.topic = input.topic || undefined;
   test.durationMinutes = input.durationMinutes;
   test.totalMarks = totalMarks;
+
+  /**
+   * The sitting, converted from the tutor's wall clock to the instant it
+   * names. These two fields were already read by `listAvailableTests` but
+   * never written by anything, so scheduling a test was impossible - a test
+   * became visible the moment it was published and stayed visible forever.
+   *
+   * An empty string clears the field rather than leaving the old value: the
+   * tutor removing a date must actually remove it.
+   */
+  test.availableFrom = input.availableFrom
+    ? (sastLocalToUtc(input.availableFrom) ?? undefined)
+    : undefined;
+  test.availableUntil = input.availableUntil
+    ? (sastLocalToUtc(input.availableUntil) ?? undefined)
+    : undefined;
+
   await test.save();
 
   await Question.deleteMany({ test: test._id });

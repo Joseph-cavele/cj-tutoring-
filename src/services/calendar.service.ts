@@ -4,6 +4,7 @@ import { isStaff } from '@/lib/auth/roles';
 import type { SessionUser } from '@/lib/auth/guard';
 import { tutorProfileFor } from '@/lib/booking/access';
 import { nowInSast, toIsoDate } from '@/lib/availability/slots';
+import { getSittingsByDate, type TimetableEntry } from '@/services/timetable.service';
 import type { BookingStatus } from '@/lib/booking/constants';
 import type { DeliveryMode } from '@/models/types';
 
@@ -24,10 +25,8 @@ export class CalendarError extends Error {
  * their user id - no tutor id is accepted from the client, and the month is
  * clamped so a crafted query cannot ask for ten thousand years of bookings.
  *
- * Tests are not plotted yet: the Test model has no scheduled date or start
- * time, so there is nothing to place a test on a day with. That is the test
- * timetable work, and the day shape below already carries the field so adding
- * it later does not change this contract.
+ * Tests come from the timetable service rather than being queried again here,
+ * so "what is on the calendar" and "what is on the timetable" cannot disagree.
  */
 
 export type CalendarBooking = {
@@ -49,6 +48,8 @@ export type CalendarDay = {
   isToday: boolean;
   isPast: boolean;
   bookings: CalendarBooking[];
+  /** Tests sitting on this day, from the timetable. */
+  tests: TimetableEntry[];
   /** The tutor teaches on this weekday, per the recurring pattern. */
   teachesThisWeekday: boolean;
   timeOff: { timeOffId: string; reason: string | null } | null;
@@ -69,6 +70,7 @@ export type CalendarMonth = {
     cancelled: number;
     completed: number;
     daysOff: number;
+    tests: number;
   };
 };
 
@@ -128,7 +130,7 @@ export async function getTutorCalendar(params: {
 
   const { gridStart, gridEnd } = gridRange(year, month);
 
-  const [bookings, windows, daysOff] = await Promise.all([
+  const [bookings, windows, daysOff, sittings] = await Promise.all([
     Booking.find({
       tutor: profile._id,
       date: { $gte: gridStart, $lte: gridEnd },
@@ -150,6 +152,12 @@ export async function getTutorCalendar(params: {
     TimeOff.find({ tutor: profile._id, date: { $gte: gridStart, $lte: gridEnd } })
       .select('date reason')
       .lean(),
+
+    getSittingsByDate({
+      user: params.user,
+      fromIsoDate: toIsoDate(gridStart),
+      toIsoDate: toIsoDate(gridEnd),
+    }),
   ]);
 
   // Bucket by day once, rather than filtering the whole list per cell.
@@ -199,6 +207,7 @@ export async function getTutorCalendar(params: {
       isToday: isoDate === today,
       isPast: isoDate < today,
       bookings: bookingsByDate.get(isoDate) ?? [],
+      tests: sittings.get(isoDate) ?? [],
       teachesThisWeekday: teachingWeekdays.has(cursor.getUTCDay()),
       timeOff: timeOffByDate.get(isoDate) ?? null,
     });
@@ -227,6 +236,7 @@ export async function getTutorCalendar(params: {
       cancelled: countStatus('cancelled') + countStatus('rejected'),
       completed: countStatus('completed'),
       daysOff: inMonth.filter((day) => day.timeOff).length,
+      tests: inMonth.reduce((sum, day) => sum + day.tests.length, 0),
     },
   };
 }

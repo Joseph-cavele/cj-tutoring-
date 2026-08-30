@@ -53,6 +53,8 @@ export default function TestReviewer({
   initialDescription,
   initialTopic,
   initialDuration,
+  initialAvailableFrom,
+  initialAvailableUntil,
   initialQuestions,
   isDraft,
 }: {
@@ -61,6 +63,9 @@ export default function TestReviewer({
   initialDescription: string;
   initialTopic: string;
   initialDuration: number;
+  /** "YYYY-MM-DDTHH:mm" in South African time, or empty. */
+  initialAvailableFrom: string;
+  initialAvailableUntil: string;
   initialQuestions: QuestionDraft[];
   isDraft: boolean;
 }) {
@@ -70,6 +75,8 @@ export default function TestReviewer({
   const [description, setDescription] = useState(initialDescription);
   const [topic, setTopic] = useState(initialTopic);
   const [duration, setDuration] = useState(initialDuration);
+  const [availableFrom, setAvailableFrom] = useState(initialAvailableFrom);
+  const [availableUntil, setAvailableUntil] = useState(initialAvailableUntil);
   const [questions, setQuestions] = useState<QuestionDraft[]>(initialQuestions);
 
   const [error, setError] = useState<string | null>(null);
@@ -98,6 +105,8 @@ export default function TestReviewer({
         description: description || undefined,
         topic: topic || undefined,
         durationMinutes: duration,
+        availableFrom,
+        availableUntil,
         questions: questions.map((question) => ({
           type: question.type,
           prompt: question.prompt,
@@ -216,6 +225,48 @@ export default function TestReviewer({
             />
           </label>
         </div>
+
+        {/* The sitting. Both optional: a test with no window opens the moment
+            it is published and never closes, which is the old behaviour and
+            still the right default for homework-style practice. */}
+        <fieldset className="mt-4">
+          <legend className="text-[13px] font-semibold text-brand-navy">
+            Scheduled sitting <span className="font-normal text-brand-slate">(optional)</span>
+          </legend>
+          <p className="mt-1 text-[13px] text-brand-slate">
+            South African time. Leave both empty for a test students can take
+            whenever they like. Setting an opening time puts it on the timetable.
+          </p>
+
+          <div className="mt-2 grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="block text-[13px] font-semibold text-brand-navy">Opens</span>
+              <input
+                type="datetime-local"
+                value={availableFrom}
+                onChange={(event) => {
+                  setAvailableFrom(event.target.value);
+                  setSaved(false);
+                }}
+                className={`${FIELD_CLASS} mt-1`}
+              />
+            </label>
+
+            <label className="block">
+              <span className="block text-[13px] font-semibold text-brand-navy">Closes</span>
+              <input
+                type="datetime-local"
+                value={availableUntil}
+                min={availableFrom || undefined}
+                onChange={(event) => {
+                  setAvailableUntil(event.target.value);
+                  setSaved(false);
+                }}
+                className={`${FIELD_CLASS} mt-1`}
+              />
+            </label>
+          </div>
+        </fieldset>
 
         <p className="mt-4 text-[14px] font-semibold text-brand-navy">
           {questions.length} question{questions.length === 1 ? '' : 's'} ·{' '}

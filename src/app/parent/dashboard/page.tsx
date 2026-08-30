@@ -58,10 +58,19 @@ export default async function ParentDashboard() {
           </div>
 
           {children.length > 0 ? (
-            <Link href={BOOKING_ROUTE} className={PRIMARY_BUTTON}>
-              <CalendarPlus className="size-4" aria-hidden="true" />
-              Book a lesson
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              <Link href={BOOKING_ROUTE} className={PRIMARY_BUTTON}>
+                <CalendarPlus className="size-4" aria-hidden="true" />
+                Book a lesson
+              </Link>
+              <Link
+                href="/parent/timetable"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border-[1.5px] border-brand-blue px-6 text-[15px] font-semibold text-brand-blue transition-colors hover:bg-brand-blue-50"
+              >
+                <CalendarClock className="size-4" aria-hidden="true" />
+                Test timetable
+              </Link>
+            </div>
           ) : null}
         </div>
 
