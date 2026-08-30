@@ -63,16 +63,18 @@ export default function RegisterForm() {
       return;
     }
 
-    // A tutor account is inactive until an admin verifies it, so signing in
-    // would fail. Tell them instead of bouncing them off the login screen.
+    // Every registration is an application, and the account stays closed until
+    // the tutor accepts it, so signing in would fail. Say so here rather than
+    // bouncing them off a login screen that refuses them without explanation.
     if (data.requiresApproval) {
       setPendingApproval(true);
       return;
     }
 
-    // Registration does NOT sign anyone in. The new account holder proves they
-    // know the password by logging in with it, which also means a shared device
-    // is never left holding a session nobody asked for.
+    // Kept as the fallback: registration does NOT sign anyone in. The new
+    // account holder proves they know the password by logging in with it,
+    // which also means a shared device is never left holding a session nobody
+    // asked for.
     router.push('/login?registered=1');
   };
 
@@ -81,8 +83,13 @@ export default function RegisterForm() {
       <div role="status" className="text-center">
         <h2 className="text-xl font-bold text-brand-navy">Thank you for applying</h2>
         <p className="mt-3 text-[15px] leading-relaxed text-brand-slate">
-          Tutor accounts are checked by our team before they are activated. We
-          will email you once your account is ready.
+          Your application has been sent to your tutor. Every new account is
+          reviewed before it is opened, so you cannot sign in just yet.
+        </p>
+        <p className="mt-3 text-[15px] leading-relaxed text-brand-slate">
+          We have emailed you to confirm we have it, and we will email you again
+          as soon as your tutor has answered. You can sign in with the password
+          you just chose from that moment.
         </p>
       </div>
     );

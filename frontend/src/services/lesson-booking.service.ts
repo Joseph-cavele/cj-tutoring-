@@ -9,6 +9,7 @@ import {
 } from '@/models/Booking';
 import type { DeliveryMode } from '@/models/types';
 import type { SessionUser } from '@/lib/auth/guard';
+import { isStaff } from '@/lib/auth/roles';
 import {
   BookingAccessError,
   bookingScopeFor,
@@ -457,10 +458,11 @@ export async function cancelBooking(
 }
 
 /**
- * Admin override (rule 9).
+ * Staff override (rule 9).
  *
  * Kept separate from cancelBooking so the broad power to set any status is
- * reachable only through a function that checks for the admin role first.
+ * reachable only through a function that checks the caller is staff first.
+ * The tutor who owns the business holds this power alongside an admin.
  */
 export async function adminSetBookingStatus(
   user: SessionUser,
@@ -468,8 +470,8 @@ export async function adminSetBookingStatus(
 ) {
   await connectDB();
 
-  if (user.role !== 'admin') {
-    throw new BookingError('Only an admin can change a booking status', 403);
+  if (!isStaff(user.role)) {
+    throw new BookingError('Only the tutor or an admin can change a booking status', 403);
   }
 
   const booking = await Booking.findById(input.bookingId);

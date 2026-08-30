@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowLeft, Mail } from 'lucide-react';
 
 import { requireRole } from '@/lib/auth/guard';
+import { STAFF_ROLES } from '@/lib/auth/roles';
 import { connectDB } from '@/lib/mongodb';
 import { Subject } from '@/models';
 import { bookabilityBlockers, listTutorsForAdmin } from '@/services/tutor.service';
@@ -19,7 +20,7 @@ export const dynamic = 'force-dynamic';
  * leads the page - nothing about a tutor works until someone acts on it.
  */
 export default async function AdminTutorsPage() {
-  await requireRole('admin', '/admin/tutors');
+  await requireRole(STAFF_ROLES, '/admin/tutors');
 
   await connectDB();
 

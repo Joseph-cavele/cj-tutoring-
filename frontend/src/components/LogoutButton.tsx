@@ -12,6 +12,10 @@ import { cn } from '@/lib/utils';
  * redirect:true so the browser performs a full navigation rather than a client
  * transition: that discards the router cache, so pressing Back cannot paint a
  * dashboard the signed-out user is no longer entitled to see.
+ *
+ * `redirectTo`, not `callbackUrl`. NextAuth v5 renamed it and ignores the old
+ * name, which left sign-out falling back to the page you were already on -
+ * a dashboard - so the proxy bounced you to /login instead of home.
  */
 export default function LogoutButton({
   className,
@@ -31,7 +35,7 @@ export default function LogoutButton({
       onClick={() => {
         setBusy(true);
         onDone?.();
-        void signOut({ callbackUrl: '/', redirect: true });
+        void signOut({ redirectTo: '/', redirect: true });
       }}
       className={cn(
         'inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-[1.5px] border-brand-blue px-5 text-[15px] font-semibold text-brand-blue transition-colors hover:bg-brand-blue-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue disabled:opacity-60',

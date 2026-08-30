@@ -3,6 +3,7 @@ import { getToken } from 'next-auth/jwt';
 
 import type { Role } from '@/models/types';
 import { homeForRole } from '@/lib/routes';
+import { STAFF_ROLES } from '@/lib/auth/roles';
 
 /**
  * Route protection for CJ Tutoring.
@@ -39,6 +40,10 @@ const PUBLIC_ROUTES = [
   // handler protects itself with IP rate limiting, a honeypot and validation.
   '/api/contact',
   '/api/subscribe',
+  // The study assistant answers signed-out visitors too. The handler applies
+  // a tighter, IP-keyed rate limit to anonymous callers and stores nothing
+  // for them.
+  '/api/ai/chat',
   '/api/auth/register',
   '/api/bookings',
   // Paystack posts server-to-server with no session; the handler verifies an
@@ -47,9 +52,13 @@ const PUBLIC_ROUTES = [
 ];
 
 // URL prefix -> roles allowed to enter it.
-const ROLE_ROUTES: Record<string, Role[]> = {
-  '/admin': ['admin'],
-  '/tutor': ['tutor'],
+const ROLE_ROUTES: Record<string, readonly Role[]> = {
+  // CJ Tutoring is run by one tutor who is also the owner, so the tutor role
+  // reaches the business sections too. See @/lib/auth/roles.
+  '/admin': STAFF_ROLES,
+  // Staff only. A student or parent never reaches any /tutor screen - their
+  // own dashboards are the only place they belong.
+  '/tutor': STAFF_ROLES,
   '/student': ['student'],
   '/parent': ['parent'],
   '/dashboard': ['student', 'tutor', 'parent', 'admin'],

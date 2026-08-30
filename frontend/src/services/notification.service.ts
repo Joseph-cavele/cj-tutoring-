@@ -70,46 +70,148 @@ function ctaFor(role: Role, label: string) {
 
 const WELCOME_BY_ROLE: Record<Role, string> = {
   student:
-    'Your student account is ready. You can book lessons, join your online classes, submit assignments and follow your results from your dashboard.',
+    'Thank you for applying to join CJ Private Tutoring as a student. Your tutor will review your application, and we will email you as soon as it is accepted. You can sign in and book your first lesson from that moment.',
   parent:
-    'Your parent account is ready. Once your children are linked you can follow their lessons, attendance, results and invoices from one place.',
+    'Thank you for applying to join CJ Private Tutoring as a parent. Your tutor will review your application, and we will email you as soon as it is accepted. You can then sign in, have your children linked and follow their lessons, attendance, results and invoices from one place.',
   tutor:
-    'Thank you for registering as a tutor. One of our team will check your details before your account is activated, and we will email you as soon as that is done.',
+    'Thank you for registering as a tutor. Your details will be checked before your account is activated, and we will email you as soon as that is done.',
   admin: 'Your administrator account is ready.',
 };
 
 /**
- * Welcomes a newly registered user.
+ * Confirms a registration was received.
  *
- * A tutor is deliberately told they cannot sign in yet, because their account
- * stays inactive until an admin verifies them.
+ * Every self-registration is an application now, not a working account, so
+ * this deliberately does not link to a dashboard - the link would lead to a
+ * login that refuses them. The decision email carries the call to action
+ * instead. An admin never arrives here, but the map covers the role anyway.
  */
 export async function notifyAccountCreated(params: {
   to: string;
   name: string;
   role: Role;
 }): Promise<boolean> {
-  const awaitingApproval = params.role === 'tutor';
+  const awaitingApproval = params.role !== 'admin';
 
   return deliver('account created', {
     to: params.to,
     subject: awaitingApproval
-      ? 'We have received your tutor registration'
+      ? 'We have received your application'
       : 'Welcome to CJ Private Tutoring',
     content: {
       heading: awaitingApproval
-        ? 'Registration received'
+        ? 'Application received'
         : `Welcome to CJ Private Tutoring, ${params.name}`,
       greeting: `Hi ${params.name},`,
       intro: [WELCOME_BY_ROLE[params.role]],
       details: [
         { label: 'Email', value: params.to },
         { label: 'Account type', value: params.role },
+        ...(awaitingApproval
+          ? [{ label: 'Status', value: 'Waiting for your tutor to review it' }]
+          : []),
       ],
       cta: awaitingApproval ? undefined : ctaFor(params.role, 'Go to your dashboard'),
       outro: [
         'Keep this email for your records. If you did not create this account, please let us know.',
         `Any questions? Reply to this email or call us on ${CONTACT.phone.display}.`,
+      ],
+    },
+  });
+}
+
+/**
+ * Tells an applicant the tutor's answer.
+ *
+ * Acceptance is the first email that links to a dashboard, because it is the
+ * first moment the person can actually sign in. A decline says so plainly and
+ * still leaves a way to reach a human, since a rejected application is exactly
+ * the case where somebody wants to ask why.
+ */
+export async function notifyApplicationDecision(params: {
+  to: string;
+  name: string;
+  role: Role;
+  approved: boolean;
+  note?: string;
+}): Promise<boolean> {
+  const intro = params.approved
+    ? [
+        'Good news - your application has been accepted, and your account is now open.',
+        'You can sign in with the email address and password you chose when you registered.',
+      ]
+    : [
+        'Thank you for your interest in CJ Private Tutoring. Your application has not been accepted at this time, so the account cannot be used to sign in.',
+        'If you think this is a mistake, or you would like to talk it through, please reply to this email or give us a call.',
+      ];
+
+  return deliver('application decision', {
+    to: params.to,
+    subject: params.approved
+      ? 'Your CJ Private Tutoring account is open'
+      : 'About your CJ Private Tutoring application',
+    content: {
+      heading: params.approved
+        ? `Welcome to CJ Private Tutoring, ${params.name}`
+        : 'About your application',
+      greeting: `Hi ${params.name},`,
+      intro,
+      details: [
+        { label: 'Email', value: params.to },
+        { label: 'Account type', value: params.role },
+        ...(params.note ? [{ label: 'Note from your tutor', value: params.note }] : []),
+      ],
+      cta: params.approved ? ctaFor(params.role, 'Sign in to your dashboard') : undefined,
+      outro: [`Any questions? Reply to this email or call us on ${CONTACT.phone.display}.`],
+    },
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/* 1b. Sign-in details changed                                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Tells someone their email address or password was changed.
+ *
+ * Deliberately has no "undo" link and no call to action. Its whole job is to
+ * reach a human who did not make the change, and a one-click link in that
+ * email would be one more thing for an attacker to aim at. The instruction is
+ * to phone us, which cannot be forged.
+ *
+ * For an email change this is sent to the old address too, since that is the
+ * only inbox the rightful owner still controls afterwards.
+ */
+export async function notifyCredentialChange(params: {
+  to: string;
+  name: string;
+  change: 'email' | 'password';
+  newEmail?: string;
+}): Promise<boolean> {
+  const isEmail = params.change === 'email';
+
+  return deliver('credential change', {
+    to: params.to,
+    subject: isEmail
+      ? 'The email address on your account was changed'
+      : 'Your password was changed',
+    content: {
+      heading: isEmail ? 'Email address changed' : 'Password changed',
+      greeting: `Hi ${params.name},`,
+      intro: [
+        isEmail
+          ? 'The email address used to sign in to your CJ Private Tutoring account has just been changed. You will need the new address to sign in from now on.'
+          : 'The password on your CJ Private Tutoring account has just been changed. You will need the new password to sign in from now on.',
+        'If this was you, there is nothing to do.',
+      ],
+      details: [
+        ...(isEmail && params.newEmail
+          ? [{ label: 'New email address', value: params.newEmail }]
+          : []),
+        { label: 'When', value: new Date().toLocaleString('en-ZA') },
+      ],
+      outro: [
+        `If this was NOT you, call us straight away on ${CONTACT.phone.display} so we can secure the account.`,
       ],
     },
   });

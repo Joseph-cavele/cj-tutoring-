@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 
 import { requireRole } from '@/lib/auth/guard';
+import { STAFF_ROLES } from '@/lib/auth/roles';
 import { listSubjectsForAdmin } from '@/services/subject.service';
 import SubjectManager from '@/components/admin/SubjectManager';
 
@@ -9,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 /** Subject management (brief sections 5 and 12). Admin only. */
 export default async function AdminSubjectsPage() {
-  await requireRole('admin', '/admin/subjects');
+  await requireRole(STAFF_ROLES, '/admin/subjects');
 
   const subjects = await listSubjectsForAdmin();
 

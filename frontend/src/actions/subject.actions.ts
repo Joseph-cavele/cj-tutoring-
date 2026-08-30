@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 
 import { getAuthorizedUser } from '@/lib/auth/guard';
+import { STAFF_ROLES } from '@/lib/auth/roles';
 import {
   SubjectError,
   createSubject,
@@ -37,9 +38,9 @@ function refresh() {
 }
 
 export async function createSubjectAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser('admin');
+  const user = await getAuthorizedUser(STAFF_ROLES);
 
-  if (!user) return { ok: false, error: 'Only an admin can manage subjects' };
+  if (!user) return { ok: false, error: 'Only the tutor or an admin can manage subjects' };
 
   const parsed = createSubjectSchema.safeParse(input);
 
@@ -64,9 +65,9 @@ export async function createSubjectAction(input: unknown): Promise<ActionResult>
 }
 
 export async function updateSubjectAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser('admin');
+  const user = await getAuthorizedUser(STAFF_ROLES);
 
-  if (!user) return { ok: false, error: 'Only an admin can manage subjects' };
+  if (!user) return { ok: false, error: 'Only the tutor or an admin can manage subjects' };
 
   const parsed = updateSubjectSchema.safeParse(input);
 
@@ -93,9 +94,9 @@ export async function updateSubjectAction(input: unknown): Promise<ActionResult>
 }
 
 export async function deleteSubjectAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser('admin');
+  const user = await getAuthorizedUser(STAFF_ROLES);
 
-  if (!user) return { ok: false, error: 'Only an admin can manage subjects' };
+  if (!user) return { ok: false, error: 'Only the tutor or an admin can manage subjects' };
 
   const parsed = deleteSubjectSchema.safeParse(input);
 

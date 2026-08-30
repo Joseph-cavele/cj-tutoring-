@@ -47,10 +47,13 @@ export async function POST(request: Request) {
     );
   }
 
-  // Bot: looks successful, creates nothing.
+  // Bot: looks successful, creates nothing. requiresApproval mirrors what a
+  // real registration returns, or the honeypot would give itself away - the
+  // form sends a bot to the login page and a human to the "we have your
+  // application" screen.
   if (parsed.data.company) {
     return NextResponse.json(
-      { id: 'ok', role: parsed.data.role, requiresApproval: false },
+      { id: 'ok', role: parsed.data.role, requiresApproval: true },
       { headers: rateLimitHeaders(rate) }
     );
   }

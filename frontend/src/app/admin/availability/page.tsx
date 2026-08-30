@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 
 import { requireRole } from '@/lib/auth/guard';
+import { STAFF_ROLES } from '@/lib/auth/roles';
 import { getAllTutorWeeks, type TutorWeek } from '@/services/availability.service';
 import { WEEKDAYS } from '@/lib/booking/constants';
 import { MODE_LABELS } from '@/types/booking';
@@ -18,7 +19,7 @@ export const dynamic = 'force-dynamic';
  * hours - and then having a conversation.
  */
 export default async function AdminAvailabilityPage() {
-  await requireRole('admin', '/admin/availability');
+  await requireRole(STAFF_ROLES, '/admin/availability');
 
   const weeks = await getAllTutorWeeks();
 

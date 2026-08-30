@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowLeft, Mail, Search } from 'lucide-react';
 
 import { requireRole } from '@/lib/auth/guard';
+import { STAFF_ROLES } from '@/lib/auth/roles';
 import {
   listAllStudents,
   listUsersForAdmin,
@@ -29,7 +30,7 @@ export const dynamic = 'force-dynamic';
 export default async function AdminUsersPage(props: {
   searchParams: Promise<{ role?: string; q?: string }>;
 }) {
-  const admin = await requireRole('admin', '/admin/users');
+  const admin = await requireRole(STAFF_ROLES, '/admin/users');
 
   // searchParams is a Promise in Next 16.
   const params = await props.searchParams;

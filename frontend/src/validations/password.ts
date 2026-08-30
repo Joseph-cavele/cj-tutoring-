@@ -2,7 +2,8 @@ import { z } from 'zod';
 
 /** Password set and reset (shares the strength rules used at registration). */
 
-const passwordField = z
+/** Exported so account settings can reuse the same rules. */
+export const passwordField = z
   .string()
   .min(8, 'Use at least 8 characters')
   .max(128, 'Password is too long')

@@ -14,10 +14,17 @@ type ChatMessage = {
 const GREETING =
   'Hi. I can help with Maths (Grade 8-12) and Physical Science (Grade 10-12). What are you working on?';
 
-export default function ChatWidget() {
+/** Signed-out visitors get one extra line, because their thread is not kept. */
+const GUEST_NOTE =
+  'You are not signed in, so this chat is not saved. Log in to keep your conversations.';
+
+export default function ChatWidget({ isSignedIn = false }: { isSignedIn?: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [
     { id: 'greeting', role: 'assistant', content: GREETING },
+    ...(isSignedIn
+      ? []
+      : [{ id: 'guest-note', role: 'assistant' as const, content: GUEST_NOTE }]),
   ]);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -101,7 +108,9 @@ export default function ChatWidget() {
         throw new Error(data?.error ?? 'Request failed');
       }
 
-      conversationId.current = data.conversationId;
+      // null for a signed-out visitor: there is no thread to continue, so
+      // nothing is carried into the next turn.
+      conversationId.current = data.conversationId ?? undefined;
       setMessages((current) => [
         ...current,
         { id: `a-${current.length}`, role: 'assistant', content: data.reply },
