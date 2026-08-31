@@ -24,9 +24,14 @@ export const SECTION_BY_ROLE: Record<Role, string> = {
  * Home for a role, falling back when the session carries no usable role.
  * Callers pick the fallback: the header sends nowhere useful, the proxy
  * sends a role-less session back to login.
+ *
+ * The lookup is guarded rather than trusting the Role type, because the role
+ * arrives from a JWT and from documents written before the roles changed.
+ * A retired value such as the old `admin` is not a key here, and returning
+ * undefined sent those accounts to a literal "/undefined" page.
  */
 export function homeForRole(role: Role | undefined, fallback = '/dashboard'): string {
-  return role ? HOME_BY_ROLE[role] : fallback;
+  return (role && HOME_BY_ROLE[role]) || fallback;
 }
 
 /** Public booking entry point, referenced by every "Book a Lesson" CTA. */
