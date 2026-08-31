@@ -64,8 +64,10 @@ export function NavbarShell({ isSignedIn, unreadCount }: NavbarShellProps) {
       >
         <BrandMark />
 
-        {/* Centre rail. Hidden below lg so four links never wrap on a tablet. */}
-        <ul className="hidden flex-1 items-center justify-center gap-8 lg:flex">
+        {/* Centre rail from md. The four links alone are about 300px, which a
+            768px header carries comfortably once the auth buttons stay in the
+            sheet; the gap opens back up at lg, where the whole row fits. */}
+        <ul className="hidden min-w-0 flex-1 items-center justify-center gap-5 md:flex lg:gap-8">
           {NAV_LINKS.map((link) => (
             <li key={link.href}>
               <Link
@@ -83,7 +85,7 @@ export function NavbarShell({ isSignedIn, unreadCount }: NavbarShellProps) {
           ))}
         </ul>
 
-        <div className="ml-auto flex items-center gap-2 lg:ml-0">
+        <div className="ml-auto flex items-center gap-2 min-[940px]:ml-0">
           {isSignedIn ? (
             // No dashboard shortcut in the public header. The dashboard is
             // reached by signing in, never by a link sitting on every page.
@@ -110,17 +112,21 @@ export function NavbarShell({ isSignedIn, unreadCount }: NavbarShellProps) {
             </>
           ) : (
             <>
-              {/* Held back to lg: brand + three pills + the hamburger overflows
-                  a 640px header, and both are in the sheet below that. Log In
-                  is a plain link rather than a third pill, so the row does not
-                  present three competing buttons. */}
+              {/* 940px, not a named breakpoint, because that is where the whole
+                  row actually fits: brand, four links, these two and the CTA
+                  measure about 880px, so md would overflow and lg would leave a
+                  laptop at 975px looking at a hamburger with half the bar
+                  empty. The trigger below hides at the same width, so the menu
+                  disappears exactly when the last thing it held reaches the bar.
+                  Log In is a plain link rather than a third pill, so the row
+                  does not present three competing buttons. */}
               <Link
                 href={LOGIN_LINK.href}
-                className="hidden min-h-11 items-center px-2 text-[15px] font-medium text-brand-navy transition-colors hover:text-brand-blue focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-blue lg:inline-flex"
+                className="hidden min-h-11 items-center px-2 text-[15px] font-medium text-brand-navy transition-colors hover:text-brand-blue focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-blue min-[940px]:inline-flex"
               >
                 {LOGIN_LINK.label}
               </Link>
-              <SecondaryLink href={REGISTER_LINK.href} className="hidden lg:inline-flex">
+              <SecondaryLink href={REGISTER_LINK.href} className="hidden min-[940px]:inline-flex">
                 {REGISTER_LINK.label}
               </SecondaryLink>
               <PrimaryLink href={PRIMARY_CTA.href} className="hidden sm:inline-flex">
@@ -134,7 +140,7 @@ export function NavbarShell({ isSignedIn, unreadCount }: NavbarShellProps) {
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
             <SheetTrigger
               aria-label="Open menu"
-              className="inline-flex size-11 items-center justify-center rounded-full text-brand-navy transition-colors hover:bg-brand-blue-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue lg:hidden"
+              className="inline-flex size-11 items-center justify-center rounded-full text-brand-navy transition-colors hover:bg-brand-blue-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue min-[940px]:hidden"
             >
               <Menu className="size-6" aria-hidden="true" />
             </SheetTrigger>
