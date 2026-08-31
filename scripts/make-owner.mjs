@@ -105,6 +105,7 @@ if (!existing) {
     email,
     passwordHash: await bcrypt.hash(password, SALT_ROUNDS),
     role: 'tutor',
+    passwordSet: true,
     approvalStatus: 'approved',
     approvedAt: now,
     isActive: true,
@@ -152,6 +153,7 @@ if (setPassword) {
   }
 
   changes.passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+  changes.passwordSet = true;
 }
 
 await users.updateOne({ _id: existing._id }, { $set: changes });

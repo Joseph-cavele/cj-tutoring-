@@ -15,6 +15,7 @@ export default function LoginForm() {
   const searchParams = useSearchParams();
   const [formError, setFormError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const passwordWasSet = searchParams.get('passwordSet') === '1';
 
   const {
     register,
@@ -34,12 +35,9 @@ export default function LoginForm() {
 
     if (!result || result.error) {
       // Deliberately vague about which of the two was wrong: the response must
-      // not reveal which emails exist. The second sentence is the same for
-      // everybody, so it adds the one explanation a new applicant needs -
-      // their account is closed until the tutor accepts them - without
-      // confirming anything about this particular address.
+      // not reveal which emails exist.
       setFormError(
-        'Those details did not match an open account. If you have just registered, you can sign in once your tutor has accepted your application - we will email you.'
+        'Invalid email or password. Please check your credentials or create your password if invited.'
       );
       return;
     }
@@ -51,6 +49,14 @@ export default function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+      {passwordWasSet && (
+        <div
+          role="status"
+          className="rounded-xl bg-green-50 border border-green-200 p-3.5 text-[14px] font-semibold text-green-800"
+        >
+          Your password has been set successfully! Please sign in below.
+        </div>
+      )}
       <div>
         <label htmlFor="email" className="sr-only">
           Email

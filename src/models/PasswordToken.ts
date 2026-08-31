@@ -1,14 +1,15 @@
 import { Schema, model, models, type Model, type Types } from 'mongoose';
 
-export const TOKEN_PURPOSES = ['reset', 'invite'] as const;
+export const TOKEN_PURPOSES = ['setup', 'reset', 'invite'] as const;
 export type TokenPurpose = (typeof TOKEN_PURPOSES)[number];
 
 /**
  * A one-time link for setting a password.
  *
- * Two uses, one mechanism: `reset` for someone who forgot theirs, and `invite`
- * for an account created on someone else's behalf - a child added by their
- * parent - which has never had one.
+ * Three uses, one mechanism:
+ * - `setup` for newly created accounts (tutor, student, parent) choosing their first password.
+ * - `reset` for someone who forgot theirs.
+ * - `invite` for an account created on someone else's behalf.
  *
  * Only a SHA-256 hash of the token is stored. The plain value exists in the
  * emailed URL and nowhere else, so a leaked database cannot be used to seize

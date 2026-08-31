@@ -18,10 +18,16 @@ export class PasswordError extends Error {
 
 const SALT_ROUNDS = 12;
 
-/** A forgotten password is urgent; an invite may sit in an inbox for days. */
+/**
+ * Token Time-To-Live.
+ *
+ * One-time password setup tokens (for tutor, student, parent account creation)
+ * and invite tokens expire in 2 hours. Password reset tokens expire in 1 hour.
+ */
 const TTL_MS: Record<TokenPurpose, number> = {
+  setup: 2 * 60 * 60 * 1000,
   reset: 60 * 60 * 1000,
-  invite: 7 * 24 * 60 * 60 * 1000,
+  invite: 2 * 60 * 60 * 1000,
 };
 
 /** The emailed value: 32 random bytes, URL-safe. */
@@ -30,8 +36,24 @@ function makeToken(): string {
 }
 
 /** Only the hash is ever stored or compared. */
-function hashToken(token: string): string {
+export function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+/**
+ * Base site URL for email links.
+ */
+function resolveOrigin(origin?: string): string {
+  const base = origin || process.env.NEXTAUTH_URL || 'https://cjprivatetutoring.co.za';
+  return base.replace(/\/$/, '');
+}
+
+export function createPasswordLink(token: string, origin?: string): string {
+  return `${resolveOrigin(origin)}/create-password?token=${encodeURIComponent(token)}`;
+}
+
+export function resetPasswordLink(token: string, origin?: string): string {
+  return `${resolveOrigin(origin)}/reset-password?token=${encodeURIComponent(token)}`;
 }
 
 /**
@@ -61,8 +83,49 @@ export async function issuePasswordToken(params: {
   return token;
 }
 
-function linkFor(token: string, origin: string): string {
-  return `${origin}/reset-password?token=${encodeURIComponent(token)}`;
+/**
+ * Sends a professional password setup email for newly created accounts
+ * (tutors, students, and parents).
+ */
+export async function sendPasswordSetupEmail(params: {
+  to: string;
+  name: string;
+  token: string;
+  origin?: string;
+  role?: string;
+}) {
+  const link = createPasswordLink(params.token, params.origin);
+  const roleDisplay = params.role
+    ? params.role.charAt(0).toUpperCase() + params.role.slice(1)
+    : 'User';
+
+  try {
+    await sendMail({
+      to: params.to,
+      subject: 'Create your tutoring platform password',
+      text: [
+        `Hi ${params.name},`,
+        '',
+        'Your account has been created on the CJ Private Tutoring platform.',
+        'Please click the link below to choose your password and activate your account:',
+        '',
+        link,
+        '',
+        'This link is valid for 2 hours and can only be used once.',
+        '',
+        'If you did not request this account, please ignore this email.',
+        'Never share this link with anyone.',
+        '',
+        '--',
+        'CJ Private Tutoring',
+        'cjprivatetutoring.co.za',
+      ].join('\n'),
+    });
+  } catch (error) {
+    if (!(error instanceof EmailNotConfiguredError)) {
+      console.error('[password] setup email failed', error);
+    }
+  }
 }
 
 /** The "you have been added" email for an account that never had a password. */
@@ -70,27 +133,33 @@ export async function sendInviteEmail(params: {
   to: string;
   name: string;
   token: string;
-  origin: string;
+  origin?: string;
   invitedByName: string;
 }) {
-  const link = linkFor(params.token, params.origin);
+  const link = createPasswordLink(params.token, params.origin);
 
-  await sendMail({
-    to: params.to,
-    subject: 'Set up your CJ Private Tutoring account',
-    text: [
-      `Hi ${params.name},`,
-      '',
-      `${params.invitedByName} has added you to CJ Private Tutoring.`,
-      '',
-      'Choose a password to activate your account:',
-      link,
-      '',
-      'This link works once and expires in seven days.',
-      '',
-      'If you were not expecting this, you can ignore this email.',
-    ].join('\n'),
-  });
+  try {
+    await sendMail({
+      to: params.to,
+      subject: 'Create your tutoring platform password',
+      text: [
+        `Hi ${params.name},`,
+        '',
+        `${params.invitedByName} has added you to CJ Private Tutoring.`,
+        '',
+        'Choose a password to activate your account:',
+        link,
+        '',
+        'This link works once and expires in 2 hours.',
+        '',
+        'If you were not expecting this, you can ignore this email.',
+      ].join('\n'),
+    });
+  } catch (error) {
+    if (!(error instanceof EmailNotConfiguredError)) {
+      console.error('[password] invite email failed', error);
+    }
+  }
 }
 
 /**
@@ -100,7 +169,7 @@ export async function sendInviteEmail(params: {
  * caller "no such user" would turn this into a way to discover who has an
  * account here, so the difference is invisible from outside.
  */
-export async function requestPasswordReset(params: { email: string; origin: string }) {
+export async function requestPasswordReset(params: { email: string; origin?: string }) {
   await connectDB();
 
   const email = params.email.toLowerCase().trim();
@@ -115,7 +184,7 @@ export async function requestPasswordReset(params: { email: string; origin: stri
     purpose: 'reset',
   });
 
-  const link = linkFor(token, params.origin);
+  const link = resetPasswordLink(token, params.origin);
 
   try {
     await sendMail({
@@ -128,7 +197,7 @@ export async function requestPasswordReset(params: { email: string; origin: stri
         'choose a new one here:',
         link,
         '',
-        'This link works once and expires in an hour.',
+        'This link works once and expires in 1 hour.',
         '',
         'If it was not you, ignore this email. Your password has not changed.',
       ].join('\n'),
@@ -137,8 +206,6 @@ export async function requestPasswordReset(params: { email: string; origin: stri
     if (!(error instanceof EmailNotConfiguredError)) {
       console.error('[password] reset email failed', error);
     }
-    // Still reports success: the response must not reveal anything about the
-    // account, including whether our mail server is working.
   }
 
   return { sent: true };
@@ -185,8 +252,7 @@ export async function checkPasswordToken(token: string): Promise<TokenCheck> {
  *
  * The token identifies the account; no email or user id is accepted from the
  * request, so possessing a link for one account cannot change another's. The
- * token is consumed in the same operation, and an invite additionally
- * activates the account it was issued for.
+ * token is consumed in the same operation, and sets passwordSet to true.
  */
 export async function setPasswordWithToken(params: {
   token: string;
@@ -198,30 +264,31 @@ export async function setPasswordWithToken(params: {
 
   if (!record || record.usedAt || record.expiresAt.getTime() < Date.now()) {
     throw new PasswordError(
-      'That link has expired or has already been used. Please request a new one.',
+      'Your password setup link is invalid or has expired. Please request a new link.',
       400
     );
   }
 
-  const user = await User.findById(record.user).select('_id isActive approvalStatus');
+  const user = await User.findById(record.user).select('_id isActive approvalStatus passwordSet');
 
   if (!user) throw new PasswordError('That account no longer exists', 404);
+
+  // Holding a link is not the same as being let in. This used to activate the
+  // account and approve a pending one, which handed the applicant the decision
+  // that belongs to the tutor, and let an outstanding reset link issued before
+  // a suspension re-open the account. Only decideApplication opens a door.
+  if (user.approvalStatus !== 'approved' || !user.isActive) {
+    throw new PasswordError(
+      'That account is not open yet, so its password cannot be set. Please contact us.',
+      403
+    );
+  }
 
   const passwordHash = await bcrypt.hash(params.password, SALT_ROUNDS);
 
   user.passwordHash = passwordHash;
-
-  // An invited account has never been able to sign in. Accepting the invite is
-  // what switches it on. A reset never re-activates a suspended account.
-  //
-  // The approvalStatus check is belt and braces: an applicant the tutor has
-  // not accepted is never issued an invite token in the first place, so this
-  // should be unreachable - but accepting an invite is the one code path that
-  // can activate an account without the tutor, and it must never become a way
-  // around their decision.
-  if (record.purpose === 'invite' && user.approvalStatus === 'approved') {
-    user.isActive = true;
-  }
+  user.passwordSet = true;
+  user.sessionsValidFrom = new Date();
 
   await user.save();
 

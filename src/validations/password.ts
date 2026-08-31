@@ -21,7 +21,18 @@ export const resetPasswordSchema = z
   .object({
     token: z.string().min(10, 'That link is not valid').max(200),
     password: passwordField,
-    confirmPassword: z.string(),
+    confirmPassword: z.string().min(1, 'Confirm password is required'),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'The passwords do not match',
+    path: ['confirmPassword'],
+  });
+
+export const createPasswordSchema = z
+  .object({
+    token: z.string().min(10, 'That password setup link is not valid').max(200),
+    password: passwordField,
+    confirmPassword: z.string().min(1, 'Confirm password is required'),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: 'The passwords do not match',
@@ -30,3 +41,4 @@ export const resetPasswordSchema = z
 
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type CreatePasswordInput = z.infer<typeof createPasswordSchema>;

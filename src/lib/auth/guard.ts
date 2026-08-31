@@ -35,11 +35,15 @@ export async function requireUser(callbackUrl?: string): Promise<SessionUser> {
   return session.user as SessionUser;
 }
 
+/** Alias for requireUser for explicit specification matching. */
+export const requireAuth = requireUser;
+
 /**
  * A signed-in user holding one of `roles`.
  *
- * A user with the wrong role is sent to their own dashboard rather than shown
- * an error: they are authenticated, just not entitled to this page.
+ * If the user is unauthenticated, they are redirected to `/login`.
+ * If the user is authenticated but does not hold an allowed role,
+ * they are redirected to `/unauthorized`.
  */
 export async function requireRole(
   // readonly so a `[...] as const` list such as STAFF_ROLES can be passed
@@ -51,7 +55,7 @@ export async function requireRole(
   const allowed = Array.isArray(roles) ? roles : [roles as Role];
 
   if (!allowed.includes(user.role)) {
-    redirect(homeForRole(user.role, '/login'));
+    redirect('/unauthorized');
   }
 
   return user;

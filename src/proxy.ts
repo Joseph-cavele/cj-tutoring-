@@ -24,8 +24,10 @@ const PUBLIC_ROUTES = [
   '/',
   '/login',
   '/register',
+  '/create-password',
   '/forgot-password',
   '/reset-password',
+  '/unauthorized',
   // Marketing pages. These are linked from the header and footer, so gating
   // them would send every first-time visitor to the login screen.
   '/subjects',
@@ -45,6 +47,9 @@ const PUBLIC_ROUTES = [
   // for them.
   '/api/ai/chat',
   '/api/auth/register',
+  '/api/auth/create-password',
+  '/api/auth/forgot-password',
+  '/api/auth/reset-password',
   '/api/bookings',
   // Paystack posts server-to-server with no session; the handler verifies an
   // HMAC signature instead.
@@ -60,6 +65,9 @@ const ROLE_ROUTES: Record<string, readonly Role[]> = {
   '/student': ['student'],
   '/parent': ['parent'],
   '/dashboard': ROLES,
+  '/api/tutor': STAFF_ROLES,
+  '/api/student': ['student'],
+  '/api/parent': ['parent'],
 };
 
 /**
@@ -105,7 +113,6 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-
   const roleRoute = matchRoleRoute(pathname);
 
   // Not a public route and not a role-gated one: require a session and nothing more.
@@ -120,10 +127,12 @@ export async function proxy(request: NextRequest) {
     return redirectToLogin(request, pathname, search);
   }
 
-  // Signed in, but the session carries no role - treat as misconfigured, not authorized.
+  // Signed in, but attempting to access another role's dashboard/route:
   if (!role || !allowedRoles.includes(role)) {
-    // A session with no valid role is misconfigured, not authorized.
-    return NextResponse.redirect(new URL(homeForRole(role, '/login'), request.url));
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    return NextResponse.redirect(new URL('/unauthorized', request.url));
   }
 
   return noStore(NextResponse.next());

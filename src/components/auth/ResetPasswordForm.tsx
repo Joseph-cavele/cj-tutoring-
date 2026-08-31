@@ -19,7 +19,7 @@ export default function ResetPasswordForm({
   purpose,
 }: {
   token: string;
-  purpose: 'reset' | 'invite';
+  purpose: 'setup' | 'reset' | 'invite';
 }) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
