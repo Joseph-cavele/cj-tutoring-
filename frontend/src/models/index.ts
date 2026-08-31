@@ -12,6 +12,7 @@ export { default as Subject, type ISubject } from './Subject';
 export { default as Topic, type ITopic } from './Topic';
 export { default as Class, type IClass } from './Class';
 export { default as Attendance, type IAttendance } from './Attendance';
+export { default as Lesson, type ILesson, type LessonProgress } from './Lesson';
 
 export { default as Assignment, type IAssignment } from './Assignment';
 export {
@@ -44,7 +45,9 @@ export {
   type IPasswordToken,
   type TokenPurpose,
 } from './PasswordToken';
+export { default as ParentInvite, type IParentInvite } from './ParentInvite';
 export { default as Subscriber, type ISubscriber } from './Subscriber';
 export { default as BookingRequest, type IBookingRequest } from './BookingRequest';
 export { default as Booking, type IBooking, type BookingStatus } from './Booking';
 export { default as Availability, type IAvailability } from './Availability';
+export { default as TimeOff, type ITimeOff } from './TimeOff';

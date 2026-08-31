@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { getAuthorizedUser } from '@/lib/auth/guard';
+import { getCapableUser } from '@/lib/auth/guard';
 import { isCloudinaryConfigured, signUpload } from '@/lib/cloudinary';
 import { HOUR, MINUTE, checkRateLimit, tooManyRequests } from '@/lib/rate-limit';
 
@@ -20,7 +20,7 @@ const SIGN_RULES = [
 ];
 
 export async function POST() {
-  const user = await getAuthorizedUser(['tutor', 'admin']);
+  const user = await getCapableUser('materials:manage');
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

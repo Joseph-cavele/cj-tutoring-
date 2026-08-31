@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { getAuthorizedUser } from '@/lib/auth/guard';
+import { getCapableUser } from '@/lib/auth/guard';
 import { getTutorsForSubject } from '@/services/availability.service';
 import { objectId } from '@/validations/lesson-booking';
 
@@ -11,7 +11,7 @@ import { objectId } from '@/validations/lesson-booking';
  * unapproved tutor cannot be reached by guessing a subject id.
  */
 export async function GET(request: Request) {
-  const user = await getAuthorizedUser(['student', 'parent', 'admin']);
+  const user = await getCapableUser('bookings:create');
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

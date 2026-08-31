@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { getAuthorizedUser } from '@/lib/auth/guard';
+import { getAuthorizedUser, getCapableUser } from '@/lib/auth/guard';
 import {
   MaterialError,
   createMaterial,
@@ -38,7 +38,7 @@ function refresh() {
 }
 
 export async function createMaterialAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser(['tutor', 'admin']);
+  const user = await getCapableUser('materials:manage');
 
   if (!user) return { ok: false, error: 'Only a tutor can upload materials' };
 
@@ -65,7 +65,7 @@ export async function createMaterialAction(input: unknown): Promise<ActionResult
 }
 
 export async function setMaterialPublishedAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser(['tutor', 'admin']);
+  const user = await getCapableUser('materials:manage');
 
   if (!user) return { ok: false, error: 'Only a tutor can publish materials' };
 
@@ -83,7 +83,7 @@ export async function setMaterialPublishedAction(input: unknown): Promise<Action
 }
 
 export async function deleteMaterialAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser(['tutor', 'admin']);
+  const user = await getCapableUser('materials:manage');
 
   if (!user) return { ok: false, error: 'Only a tutor can delete materials' };
 

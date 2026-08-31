@@ -1,14 +1,19 @@
 'use server';
+import { revalidatePath } from 'next/cache';
 
 import { headers } from 'next/headers';
 
-import { getAuthorizedUser } from '@/lib/auth/guard';
+import { getCapableUser } from '@/lib/auth/guard';
 import {
   BookingPaymentError,
   startBookingCheckout,
 } from '@/services/booking-payment.service';
 import { objectId } from '@/validations/lesson-booking';
 import type { ActionResult } from '@/actions/booking.actions';
+import {
+  reconcilePendingPayments,
+  type ReconcileSummary,
+} from '@/services/payment-admin.service';
 
 /**
  * Starts payment for a booking.
@@ -20,7 +25,7 @@ import type { ActionResult } from '@/actions/booking.actions';
 export async function startBookingCheckoutAction(
   bookingId: unknown
 ): Promise<ActionResult<{ redirectUrl: string; reference: string }>> {
-  const user = await getAuthorizedUser(['student', 'parent', 'admin']);
+  const user = await getCapableUser('payments:checkout');
 
   if (!user) return { ok: false, error: 'Please sign in to pay for this lesson' };
 
@@ -54,5 +59,33 @@ export async function startBookingCheckoutAction(
 
     console.error('[payment action] checkout failed', error);
     return { ok: false, error: 'Could not start payment. Please try again.' };
+  }
+}
+
+/**
+ * Sweeps payments that are still pending and asks the provider about each.
+ *
+ * Recovers charges the webhook never settled - a customer who paid and closed
+ * the browser, or a webhook URL configured wrongly in the provider dashboard.
+ * Owner only, and it still cannot mark anything paid by itself: the sweep
+ * delegates to the same verification the return page uses.
+ */
+export async function reconcilePaymentsAction(): Promise<
+  ActionResult<ReconcileSummary>
+> {
+  const user = await getCapableUser('payments:manage');
+
+  if (!user) return { ok: false, error: 'Please sign in again.' };
+
+  try {
+    const summary = await reconcilePendingPayments();
+
+    revalidatePath('/tutor/payments');
+    revalidatePath('/tutor/dashboard');
+
+    return { ok: true, data: summary };
+  } catch (error) {
+    console.error('[payment action] reconcile failed', error);
+    return { ok: false, error: 'Could not reach the payment provider. Please try again.' };
   }
 }

@@ -4,6 +4,7 @@ import type { SessionUser } from '@/lib/auth/guard';
 import { gradeSymbol, isAutoMarked } from '@/lib/assessment/constants';
 import { markObjective, toPercentage } from '@/lib/assessment/marking';
 import { AiUnavailableError, generateFeedback, markWrittenAnswer } from '@/lib/ai/assessment';
+import { isStaff } from '@/lib/auth/roles';
 
 export class MarkingError extends Error {
   constructor(
@@ -236,7 +237,7 @@ export async function adjustMark(
 
   if (!test) throw new MarkingError('That test was not found', 404);
 
-  if (user.role !== 'admin' && test.createdBy.toString() !== user.id) {
+  if (!isStaff(user.role) && test.createdBy.toString() !== user.id) {
     throw new MarkingError('Only the tutor who set this test can change its marks', 403);
   }
 

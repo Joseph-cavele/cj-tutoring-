@@ -42,6 +42,32 @@ export const AI_CHAT_ANON_RULES: RateLimitRule[] = [
   { name: 'hourly', limit: 12, windowMs: HOUR },
 ];
 
+/**
+ * Redeeming a parent invitation code.
+ *
+ * The code is 50 bits, so this is not what stops guessing - it stops a script
+ * hammering the endpoint, and it is the belt to the entropy braces that lets
+ * `redeemParentInvite` return a specific, useful error to an honest parent.
+ */
+export const PARENT_INVITE_RULES: RateLimitRule[] = [
+  { name: 'burst', limit: 5, windowMs: MINUTE },
+  { name: 'hourly', limit: 20, windowMs: HOUR },
+];
+
+/**
+ * Signing in.
+ *
+ * Keyed by email rather than by IP, because the attack worth stopping is
+ * guessing one account's password, and an attacker can change address far more
+ * easily than they can change which account they want. Generous enough that
+ * someone genuinely mistyping their own password is not locked out: five tries
+ * a minute, thirty an hour.
+ */
+export const LOGIN_RULES: RateLimitRule[] = [
+  { name: 'burst', limit: 5, windowMs: MINUTE },
+  { name: 'hourly', limit: 30, windowMs: HOUR },
+];
+
 /** Defaults for ordinary read/write API routes. */
 export const DEFAULT_API_RULES: RateLimitRule[] = [
   { name: 'burst', limit: 30, windowMs: MINUTE },

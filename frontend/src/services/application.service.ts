@@ -22,11 +22,14 @@ export class ApplicationError extends Error {
  * session, never the request body (CLAUDE.md section 25).
  *
  * Approving is what actually lets somebody sign in, so it is the only place
- * outside the admin account switch that sets `isActive` to true.
+ * outside the owner's account switch that sets `isActive` to true.
  */
 
-/** Roles that can apply. An admin is made deliberately, never by a form. */
-const APPLICANT_ROLES: Role[] = ['student', 'parent', 'tutor'];
+/**
+ * Roles that can apply. The tutor/owner account is made with a script, never
+ * by a form, so it never appears in this queue - see SIGNUP_ROLES.
+ */
+const APPLICANT_ROLES: Role[] = ['student', 'parent'];
 
 export type ApplicationView = {
   userId: string;

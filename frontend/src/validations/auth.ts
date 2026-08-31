@@ -2,8 +2,16 @@ import { z } from 'zod';
 
 import { GRADES } from '@/lib/curriculum';
 
-/** Roles a visitor may create for themselves. Admin is never self-service. */
-export const SIGNUP_ROLES = ['student', 'parent', 'tutor'] as const;
+/**
+ * Roles a visitor may create for themselves.
+ *
+ * Tutor is deliberately absent. The tutor role now carries owner powers -
+ * every student's marks, every payment, every account - so a public signup
+ * route into it would be a privilege escalation waiting for an approval
+ * mistake. The owner account is made with `npm run make:owner` instead, which
+ * needs shell and database access to run.
+ */
+export const SIGNUP_ROLES = ['student', 'parent'] as const;
 export type SignupRole = (typeof SIGNUP_ROLES)[number];
 
 export const loginSchema = z.object({
@@ -54,10 +62,6 @@ export const registerSchema = z.discriminatedUnion('role', [
   z.object({
     ...baseFields,
     role: z.literal('parent'),
-  }),
-  z.object({
-    ...baseFields,
-    role: z.literal('tutor'),
   }),
 ]);
 

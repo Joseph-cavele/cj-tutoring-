@@ -7,6 +7,7 @@ export interface IUser {
   email: string;
   passwordHash?: string;
   role: Role;
+  passwordSet: boolean;
   phone?: string;
   avatar?: { url: string; publicId: string };
   emailVerifiedAt?: Date;
@@ -38,9 +39,10 @@ const userSchema = new Schema<IUser>(
       trim: true,
       index: true,
     },
-    // Optional so OAuth accounts can exist without a password.
+    // Optional so OAuth accounts or token-invited accounts can exist without a password.
     passwordHash: { type: String, select: false },
     role: { type: String, enum: ROLES, required: true, default: 'student', index: true },
+    passwordSet: { type: Boolean, default: false, index: true },
     phone: { type: String, trim: true },
     avatar: { url: String, publicId: String },
     emailVerifiedAt: { type: Date },

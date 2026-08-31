@@ -5,6 +5,7 @@ import { requireRole } from '@/lib/auth/guard';
 import { getStudentsForTutor } from '@/services/performance.service';
 import PerformancePanel from '@/components/dashboard/PerformancePanel';
 import DashboardSection from '@/components/dashboard/DashboardSection';
+import { STAFF_ROLES } from '@/lib/auth/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +17,7 @@ export const dynamic = 'force-dynamic';
  * averages come first, because those are the ones needing attention.
  */
 export default async function TutorStudentsPage() {
-  const user = await requireRole(['tutor', 'admin'], '/tutor/students');
+  const user = await requireRole(STAFF_ROLES, '/tutor/students');
   const students = await getStudentsForTutor(user);
 
   return (

@@ -21,7 +21,10 @@ import { validateProposedLesson } from '@/services/availability.service';
 import { addMinutes, isInPast, toDateOnly, toIsoDate } from '@/lib/availability/slots';
 import { isPaymentConfigured } from '@/lib/payments';
 import { cancelMeetingForBooking, createMeetingForBooking } from '@/services/zoom.service';
-import { notifyBookingCreated } from '@/services/notification.service';
+import {
+  notifyBookingCreated,
+  notifyBookingDecision,
+} from '@/services/notification.service';
 import type { CreateBookingInput } from '@/validations/lesson-booking';
 
 export class BookingError extends Error {
@@ -399,6 +402,18 @@ export async function decideBooking(
       await createMeetingForBooking(booking._id.toString());
     }
 
+    /**
+     * Tell the family. Deliberately after the save and after the meeting, so
+     * an accepted lesson already has its joining link by the time anyone is
+     * told about it - and, like the Zoom call above, this never throws: the
+     * decision stands whether or not the message goes out.
+     */
+    await notifyBookingDecision(
+      booking._id.toString(),
+      input.decision,
+      input.note ?? null
+    );
+
     return { bookingId: booking._id.toString(), status: booking.status };
   } catch (error) {
     throw asBookingError(error);
@@ -433,7 +448,7 @@ export async function cancelBooking(
     }
 
     if (
-      user.role !== 'admin' &&
+      !isStaff(user.role) &&
       isInPast(toIsoDate(booking.date), booking.startTime)
     ) {
       throw new BookingError('That lesson has already started', 409);
@@ -521,11 +536,11 @@ export async function getBookableStudents(user: SessionUser) {
 
   // Admins see everyone; a parent sees only the ids their scope allows.
   const students = await Student.find(
-    user.role === 'admin' ? {} : studentFilter ? { _id: studentFilter } : { _id: null }
+    isStaff(user.role) ? {} : studentFilter ? { _id: studentFilter } : { _id: null }
   )
     .populate<{ user: { name: string } }>('user', 'name')
     .select('user')
-    .limit(user.role === 'admin' ? 200 : 50)
+    .limit(isStaff(user.role) ? 200 : 50)
     .lean();
 
   return students.map((student) => ({

@@ -4,6 +4,7 @@ import type { SessionUser } from '@/lib/auth/guard';
 import { studentProfileFor } from '@/lib/booking/access';
 import { destroyResource, getResource } from '@/lib/cloudinary';
 import type { CreateMaterialInput } from '@/validations/material';
+import { isStaff } from '@/lib/auth/roles';
 
 export class MaterialError extends Error {
   constructor(
@@ -166,7 +167,7 @@ export async function createMaterial(user: SessionUser, input: CreateMaterialInp
 export async function listMaterialsForTutor(user: SessionUser): Promise<MaterialView[]> {
   await connectDB();
 
-  const filter = user.role === 'admin' ? {} : { uploadedBy: user.id };
+  const filter = isStaff(user.role) ? {} : { uploadedBy: user.id };
 
   const materials = await StudyMaterial.find(filter)
     .populate(RELATIONS)
@@ -215,7 +216,7 @@ export async function setMaterialPublished(
   await connectDB();
 
   const filter =
-    user.role === 'admin'
+    isStaff(user.role)
       ? { _id: input.materialId }
       : { _id: input.materialId, uploadedBy: user.id };
 
@@ -235,7 +236,7 @@ export async function deleteMaterial(user: SessionUser, materialId: string) {
   await connectDB();
 
   const filter =
-    user.role === 'admin'
+    isStaff(user.role)
       ? { _id: materialId }
       : { _id: materialId, uploadedBy: user.id };
 

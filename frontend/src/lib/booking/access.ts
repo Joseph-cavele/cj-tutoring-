@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongodb';
 import { Parent, Student, Tutor } from '@/models';
 import type { SessionUser } from '@/lib/auth/guard';
+import { isStaff } from '@/lib/auth/roles';
 
 /**
  * Who the signed-in user is allowed to act for.
@@ -52,8 +53,12 @@ export type BookingActor = {
  *
  * - A student may only book for themselves; any studentId they send is ignored.
  * - A parent may only book for a child already linked to their account.
- * - An admin may book for any student, but must name one.
- * - A tutor may not create bookings at all.
+ * - The tutor, as owner, may book for any student, but must name one - which
+ *   is how a lesson agreed over the phone gets into the system.
+ *
+ * Every branch ends at a student id this user is provably entitled to. The
+ * `requestedStudentId` from the request body is never used as a lookup key on
+ * its own (CLAUDE.md section 25).
  */
 export async function resolveBookingActor(
   user: SessionUser,
@@ -92,7 +97,7 @@ export async function resolveBookingActor(
     return { studentId: requestedStudentId, parentId: parent._id.toString() };
   }
 
-  if (user.role === 'admin') {
+  if (isStaff(user.role)) {
     if (!requestedStudentId) {
       throw new BookingAccessError('Choose which student this lesson is for', 400);
     }
@@ -104,7 +109,9 @@ export async function resolveBookingActor(
     return { studentId: student._id.toString(), parentId: null };
   }
 
-  throw new BookingAccessError('Tutors cannot create bookings', 403);
+  // Unreachable while Role is student | parent | tutor, but a new role must
+  // fail closed here rather than fall through with no student.
+  throw new BookingAccessError('Your account cannot create bookings', 403);
 }
 
 /**
@@ -115,7 +122,8 @@ export async function resolveBookingActor(
  * never loaded in the first place.
  */
 export async function bookingScopeFor(user: SessionUser): Promise<Record<string, unknown>> {
-  if (user.role === 'admin') return {};
+  // The owner reads every booking; nobody else gets an unfiltered query.
+  if (isStaff(user.role)) return {};
 
   if (user.role === 'student') {
     const student = await studentProfileFor(user.id);

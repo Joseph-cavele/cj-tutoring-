@@ -9,6 +9,7 @@ import { isCloudinaryConfigured } from '@/lib/cloudinary';
 import MaterialUploader from '@/components/tutor/MaterialUploader';
 import MaterialCard from '@/components/materials/MaterialCard';
 import DashboardSection, { StatTile } from '@/components/dashboard/DashboardSection';
+import { STAFF_ROLES } from '@/lib/auth/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +20,7 @@ export const dynamic = 'force-dynamic';
  * another's work. Admins see everything.
  */
 export default async function TutorMaterialsPage() {
-  const user = await requireRole(['tutor', 'admin'], '/tutor/materials');
+  const user = await requireRole(STAFF_ROLES, '/tutor/materials');
 
   await connectDB();
 

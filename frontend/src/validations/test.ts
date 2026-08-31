@@ -76,17 +76,42 @@ export const questionDraftSchema = z
     { message: 'A numeric question needs a number as its answer', path: ['correctAnswer'] }
   );
 
-export const saveTestSchema = z.object({
-  testId: objectId,
-  title: z.string().trim().min(3, 'Give the test a title').max(140),
-  description: z.string().trim().max(1000).optional(),
-  topic: z.string().trim().max(120).optional(),
-  durationMinutes: z.number().int().min(5).max(240),
-  questions: z
-    .array(questionDraftSchema)
-    .min(1, 'A test needs at least one question')
-    .max(50),
-});
+/**
+ * A wall-clock reading as a datetime-local input produces it, with no
+ * timezone. `sastLocalToUtc` turns it into the instant it names; doing that
+ * here in a transform would hide the conversion from the tests that cover it.
+ */
+const sastWallClock = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Choose a date and time');
+
+export const saveTestSchema = z
+  .object({
+    testId: objectId,
+    title: z.string().trim().min(3, 'Give the test a title').max(140),
+    description: z.string().trim().max(1000).optional(),
+    topic: z.string().trim().max(120).optional(),
+    durationMinutes: z.number().int().min(5).max(240),
+    /** When students may start. Empty means "as soon as it is published". */
+    availableFrom: sastWallClock.optional().or(z.literal('')),
+    /** When it closes. Empty means it stays open. */
+    availableUntil: sastWallClock.optional().or(z.literal('')),
+    questions: z
+      .array(questionDraftSchema)
+      .min(1, 'A test needs at least one question')
+      .max(50),
+  })
+  .refine(
+    (input) =>
+      !input.availableFrom ||
+      !input.availableUntil ||
+      input.availableUntil > input.availableFrom,
+    {
+      message: 'The closing time must be after the opening time',
+      path: ['availableUntil'],
+    }
+  );
 
 export type SaveTestInput = z.infer<typeof saveTestSchema>;
 

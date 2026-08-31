@@ -7,6 +7,7 @@ import { getTestForTutor, getTestSubmissions } from '@/services/test.service';
 import { isAutoMarked, QUESTION_TYPE_LABELS } from '@/lib/assessment/constants';
 import MarkAdjuster from '@/components/tutor/MarkAdjuster';
 import DashboardSection from '@/components/dashboard/DashboardSection';
+import { STAFF_ROLES } from '@/lib/auth/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +21,7 @@ export const dynamic = 'force-dynamic';
 export default async function TestSubmissionsPage(props: {
   params: Promise<{ testId: string }>;
 }) {
-  const user = await requireRole(['tutor', 'admin'], '/tutor/tests');
+  const user = await requireRole(STAFF_ROLES, '/tutor/tests');
 
   // params is a Promise in Next 16.
   const { testId } = await props.params;

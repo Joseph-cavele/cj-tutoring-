@@ -65,7 +65,7 @@ export default function BookingCard({
   showPayment = false,
 }: {
   booking: BookingView;
-  perspective: 'student' | 'tutor' | 'admin';
+  perspective: 'student' | 'tutor' | 'owner';
   actions?: React.ReactNode;
   showPayment?: boolean;
 }) {
@@ -111,7 +111,7 @@ export default function BookingCard({
           {MODE_LABELS[booking.teachingMode]}
         </Detail>
 
-        {perspective === 'admin' && booking.parent ? (
+        {perspective === 'owner' && booking.parent ? (
           <Detail icon={<User className="size-4" />} label="Booked by">
             {booking.parent.name}
           </Detail>

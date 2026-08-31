@@ -2,6 +2,11 @@ import Link from 'next/link';
 
 import type { StudentPerformance } from '@/services/performance.service';
 import { StatTile } from '@/components/dashboard/DashboardSection';
+import {
+  ScoreTrendChart,
+  SubjectChart,
+  TopicChart,
+} from '@/components/dashboard/PerformanceCharts';
 
 /**
  * Performance for one student (brief section 10).
@@ -10,6 +15,10 @@ import { StatTile } from '@/components/dashboard/DashboardSection';
  * tutor's view of a student, because all three want the same picture. Who is
  * allowed to see which student is settled by the service that built the data,
  * not here.
+ *
+ * Charts and lists both, deliberately. The charts show the shape - is this
+ * going up, which topic is dragging - and the lists underneath carry every
+ * number as text, so the values are reachable without reading a picture.
  */
 export default function PerformancePanel({
   performance,
@@ -73,6 +82,15 @@ export default function PerformancePanel({
           </ul>
         </section>
       ) : null}
+
+      {/* The shape of the picture. The lists below carry the same numbers as
+          text, so a chart is never the only way to reach a value. */}
+      <ScoreTrendChart recent={performance.recent} />
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <SubjectChart bySubject={performance.bySubject} />
+        <TopicChart byTopic={performance.byTopic} />
+      </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
         <BreakdownList

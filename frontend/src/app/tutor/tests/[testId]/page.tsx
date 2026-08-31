@@ -7,6 +7,7 @@ import { getTestForTutor } from '@/services/test.service';
 import TestReviewer from '@/components/tutor/TestReviewer';
 import { TestStatusBadge } from '@/app/tutor/tests/page';
 import { SECONDARY_BUTTON } from '@/components/booking/ui';
+import { STAFF_ROLES } from '@/lib/auth/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +20,7 @@ export const dynamic = 'force-dynamic';
 export default async function TutorTestPage(props: {
   params: Promise<{ testId: string }>;
 }) {
-  const user = await requireRole(['tutor', 'admin'], '/tutor/tests');
+  const user = await requireRole(STAFF_ROLES, '/tutor/tests');
 
   // params is a Promise in Next 16.
   const { testId } = await props.params;
@@ -78,6 +79,8 @@ export default async function TutorTestPage(props: {
             initialDescription={test.description}
             initialTopic={test.topic}
             initialDuration={test.durationMinutes}
+            initialAvailableFrom={test.availableFrom}
+            initialAvailableUntil={test.availableUntil}
             isDraft={test.status === 'draft'}
             initialQuestions={test.questions.map((question) => ({
               questionId: question.questionId,

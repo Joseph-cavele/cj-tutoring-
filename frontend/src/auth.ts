@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 import { connectDB } from '@/lib/mongodb';
 import { User } from '@/models';
+import { LOGIN_RULES, checkRateLimit } from '@/lib/rate-limit';
 import type { Role } from '@/models/types';
 
 const credentialsSchema = z.object({
@@ -37,6 +38,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const { email, password } = parsed.data;
 
+        // Password guessing is throttled here rather than in a route handler,
+        // because NextAuth owns /api/auth/* and the proxy deliberately does
+        // not run on it - so this is the only point every sign-in passes
+        // through. Keyed by address, so one account cannot be hammered from a
+        // rotating set of IPs. Returning null rather than throwing keeps the
+        // response indistinguishable from a wrong password, which is what
+        // stops the limit itself being used to probe for real accounts.
+        const rate = await checkRateLimit(`login:${email.toLowerCase()}`, LOGIN_RULES);
+
+        if (!rate.allowed) return null;
+
         await connectDB();
 
         // passwordHash is select:false on the schema, so ask for it explicitly.
@@ -44,13 +56,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         // Same null for "no such user" and "wrong password" so the response
         // cannot be used to discover which emails are registered.
-        if (!user || !user.passwordHash) return null;
+        // User must have passwordHash, must have created their password (passwordSet !== false), and must be active.
+        if (!user || !user.passwordHash || user.passwordSet === false) return null;
         if (!user.isActive) return null;
 
         const passwordMatches = await bcrypt.compare(password, user.passwordHash);
         if (!passwordMatches) return null;
 
-        await User.updateOne({ _id: user._id }, { lastLoginAt: new Date() });
+        const updateFields: { lastLoginAt: Date; passwordSet?: boolean } = {
+          lastLoginAt: new Date(),
+        };
+        if (user.passwordSet === undefined) {
+          updateFields.passwordSet = true;
+        }
+
+        await User.updateOne({ _id: user._id }, { $set: updateFields });
 
         return {
           id: user._id.toString(),

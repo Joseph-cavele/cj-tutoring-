@@ -1,6 +1,14 @@
 // Shared enums and helpers for all models.
 
-export const ROLES = ['student', 'parent', 'tutor', 'admin'] as const;
+/**
+ * The three roles the platform has.
+ *
+ * There is no separate `admin`: CJ Private Tutoring is run by one person who
+ * both teaches and owns the business, so `tutor` IS the administrator role.
+ * Splitting the two only ever produced two dashboards for one human and a
+ * second privileged account to keep secure.
+ */
+export const ROLES = ['student', 'parent', 'tutor'] as const;
 export type Role = (typeof ROLES)[number];
 
 /**

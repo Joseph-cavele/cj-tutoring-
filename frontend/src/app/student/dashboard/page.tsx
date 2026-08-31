@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import {
   BookOpen,
+  CalendarClock,
   CalendarPlus,
   GraduationCap,
   LineChart,
@@ -82,7 +83,7 @@ export default async function StudentDashboard() {
         <nav aria-label="Student sections">
           <h2 className="text-[18px] font-extrabold text-brand-navy">Quick access</h2>
 
-          <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-5">
             <QuickAccessTile
               href={BOOKING_ROUTE}
               icon={<CalendarPlus className="size-5" />}
@@ -96,6 +97,13 @@ export default async function StudentDashboard() {
               title="Tests"
               body="Take a test and see your marks."
               tone="amber"
+            />
+            <QuickAccessTile
+              href="/student/timetable"
+              icon={<CalendarClock className="size-5" />}
+              title="Test timetable"
+              body="When your next tests are."
+              tone="blue"
             />
             <QuickAccessTile
               href="/student/performance"

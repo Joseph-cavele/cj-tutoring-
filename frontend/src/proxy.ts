@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
-import type { Role } from '@/models/types';
+import { ROLES, type Role } from '@/models/types';
 import { homeForRole } from '@/lib/routes';
 import { STAFF_ROLES } from '@/lib/auth/roles';
 
@@ -24,8 +24,10 @@ const PUBLIC_ROUTES = [
   '/',
   '/login',
   '/register',
+  '/create-password',
   '/forgot-password',
   '/reset-password',
+  '/unauthorized',
   // Marketing pages. These are linked from the header and footer, so gating
   // them would send every first-time visitor to the login screen.
   '/subjects',
@@ -45,6 +47,9 @@ const PUBLIC_ROUTES = [
   // for them.
   '/api/ai/chat',
   '/api/auth/register',
+  '/api/auth/create-password',
+  '/api/auth/forgot-password',
+  '/api/auth/reset-password',
   '/api/bookings',
   // Paystack posts server-to-server with no session; the handler verifies an
   // HMAC signature instead.
@@ -53,15 +58,16 @@ const PUBLIC_ROUTES = [
 
 // URL prefix -> roles allowed to enter it.
 const ROLE_ROUTES: Record<string, readonly Role[]> = {
-  // CJ Tutoring is run by one tutor who is also the owner, so the tutor role
-  // reaches the business sections too. See @/lib/auth/roles.
-  '/admin': STAFF_ROLES,
-  // Staff only. A student or parent never reaches any /tutor screen - their
-  // own dashboards are the only place they belong.
+  // Staff only, and staff is the one tutor who owns the business. Everything
+  // that used to live under /admin is now a /tutor screen, so this single
+  // prefix guards the whole owner side. See @/lib/auth/roles.
   '/tutor': STAFF_ROLES,
   '/student': ['student'],
   '/parent': ['parent'],
-  '/dashboard': ['student', 'tutor', 'parent', 'admin'],
+  '/dashboard': ROLES,
+  '/api/tutor': STAFF_ROLES,
+  '/api/student': ['student'],
+  '/api/parent': ['parent'],
 };
 
 /**
@@ -107,7 +113,6 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-
   const roleRoute = matchRoleRoute(pathname);
 
   // Not a public route and not a role-gated one: require a session and nothing more.
@@ -122,10 +127,12 @@ export async function proxy(request: NextRequest) {
     return redirectToLogin(request, pathname, search);
   }
 
-  // Signed in, but the session carries no role - treat as misconfigured, not authorized.
+  // Signed in, but attempting to access another role's dashboard/route:
   if (!role || !allowedRoles.includes(role)) {
-    // A session with no valid role is misconfigured, not authorized.
-    return NextResponse.redirect(new URL(homeForRole(role, '/login'), request.url));
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    return NextResponse.redirect(new URL('/unauthorized', request.url));
   }
 
   return noStore(NextResponse.next());

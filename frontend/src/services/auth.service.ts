@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 
 import { connectDB } from '@/lib/mongodb';
-import { Grade, Parent, Student, Tutor, User } from '@/models';
+import { Grade, Parent, Student, User } from '@/models';
 import { notifyAccountCreated } from '@/services/notification.service';
 import type { RegisterInput } from '@/validations/auth';
 
@@ -48,6 +48,11 @@ export async function registerUser(input: RegisterInput) {
     passwordHash,
     role: input.role,
     phone: input.phone || undefined,
+    // The applicant chose this password on the form, so it is set. Without
+    // this the schema default of false applies, and src/auth.ts refuses the
+    // account for good - approving it would not help, because the login check
+    // is on passwordSet, not on approval.
+    passwordSet: true,
     // Nobody signs in on the strength of filling in a form. isActive is what
     // src/auth.ts actually checks at login; approvalStatus is why.
     approvalStatus: 'pending',
@@ -72,9 +77,6 @@ export async function registerUser(input: RegisterInput) {
       await Parent.create({ user: user._id });
     }
 
-    if (input.role === 'tutor') {
-      await Tutor.create({ user: user._id, isVerified: false });
-    }
   } catch (error) {
     // Without a profile the account is unusable, so do not leave a half-made
     // user behind for someone to sign in with.
@@ -95,3 +97,197 @@ export async function registerUser(input: RegisterInput) {
     requiresApproval: true,
   };
 }
+
+/**
+ * Creates a Tutor (business owner) account without a password.
+ * Generates a 2-hour hashed setup token and sends the password setup email.
+ */
+export async function createTutorUser(params: {
+  name: string;
+  email: string;
+  phone?: string;
+  origin?: string;
+}) {
+  await connectDB();
+
+  const email = params.email.toLowerCase().trim();
+  const existing = await User.findOne({ email }).select('_id');
+
+  if (existing) {
+    throw new RegistrationError('An account with that email already exists', 409);
+  }
+
+  const user = await User.create({
+    name: params.name.trim(),
+    email,
+    role: 'tutor',
+    phone: params.phone || undefined,
+    passwordSet: false,
+    isActive: true,
+    approvalStatus: 'approved',
+    approvedAt: new Date(),
+  });
+
+  const { Tutor } = await import('@/models/Tutor');
+  await Tutor.create({
+    user: user._id,
+    subjects: [],
+    grades: [],
+    teachingModes: ['online'],
+    isActive: true,
+    isVerified: true,
+  });
+
+  const { issuePasswordToken, sendPasswordSetupEmail } = await import(
+    '@/services/password.service'
+  );
+
+  const token = await issuePasswordToken({
+    userId: user._id.toString(),
+    purpose: 'setup',
+  });
+
+  await sendPasswordSetupEmail({
+    to: email,
+    name: user.name,
+    token,
+    origin: params.origin,
+    role: 'tutor',
+  });
+
+  return {
+    id: user._id.toString(),
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    token,
+  };
+}
+
+/**
+ * Creates/invites a Student account with a 2-hour password setup token.
+ */
+export async function createStudentUser(params: {
+  name: string;
+  email: string;
+  gradeLevel: number;
+  phone?: string;
+  origin?: string;
+}) {
+  await connectDB();
+
+  const email = params.email.toLowerCase().trim();
+  const existing = await User.findOne({ email }).select('_id');
+
+  if (existing) {
+    throw new RegistrationError('An account with that email already exists', 409);
+  }
+
+  const grade = await Grade.findOne({ level: params.gradeLevel }).select('_id');
+  if (!grade) {
+    throw new RegistrationError('That grade is not available', 400);
+  }
+
+  const user = await User.create({
+    name: params.name.trim(),
+    email,
+    role: 'student',
+    phone: params.phone || undefined,
+    passwordSet: false,
+    isActive: true,
+    approvalStatus: 'approved',
+    approvedAt: new Date(),
+  });
+
+  await Student.create({
+    user: user._id,
+    grade: grade._id,
+  });
+
+  const { issuePasswordToken, sendPasswordSetupEmail } = await import(
+    '@/services/password.service'
+  );
+
+  const token = await issuePasswordToken({
+    userId: user._id.toString(),
+    purpose: 'setup',
+  });
+
+  await sendPasswordSetupEmail({
+    to: email,
+    name: user.name,
+    token,
+    origin: params.origin,
+    role: 'student',
+  });
+
+  return {
+    id: user._id.toString(),
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    token,
+  };
+}
+
+/**
+ * Creates/invites a Parent account with a 2-hour password setup token.
+ */
+export async function createParentUser(params: {
+  name: string;
+  email: string;
+  phone?: string;
+  origin?: string;
+  studentIds?: string[];
+}) {
+  await connectDB();
+
+  const email = params.email.toLowerCase().trim();
+  const existing = await User.findOne({ email }).select('_id');
+
+  if (existing) {
+    throw new RegistrationError('An account with that email already exists', 409);
+  }
+
+  const user = await User.create({
+    name: params.name.trim(),
+    email,
+    role: 'parent',
+    phone: params.phone || undefined,
+    passwordSet: false,
+    isActive: true,
+    approvalStatus: 'approved',
+    approvedAt: new Date(),
+  });
+
+  await Parent.create({
+    user: user._id,
+    students: params.studentIds ?? [],
+  });
+
+  const { issuePasswordToken, sendPasswordSetupEmail } = await import(
+    '@/services/password.service'
+  );
+
+  const token = await issuePasswordToken({
+    userId: user._id.toString(),
+    purpose: 'setup',
+  });
+
+  await sendPasswordSetupEmail({
+    to: email,
+    name: user.name,
+    token,
+    origin: params.origin,
+    role: 'parent',
+  });
+
+  return {
+    id: user._id.toString(),
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    token,
+  };
+}
+

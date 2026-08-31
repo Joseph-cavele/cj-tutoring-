@@ -2,8 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { getAuthorizedUser } from '@/lib/auth/guard';
-import { STAFF_ROLES } from '@/lib/auth/roles';
+import { getCapableUser } from '@/lib/auth/guard';
 import {
   UserAdminError,
   changeUserRole,
@@ -34,14 +33,14 @@ function fromError(error: unknown): ActionResult<never> {
 }
 
 function refresh() {
-  revalidatePath('/admin/users');
+  revalidatePath('/tutor/accounts');
   // A parent's dashboard is built from the links changed here.
   revalidatePath('/parent/dashboard');
   revalidatePath('/booking');
 }
 
 export async function linkParentAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser(STAFF_ROLES);
+  const user = await getCapableUser('accounts:link-children');
 
   if (!user) return { ok: false, error: 'Only the tutor or an admin can manage accounts' };
 
@@ -59,7 +58,7 @@ export async function linkParentAction(input: unknown): Promise<ActionResult> {
 }
 
 export async function unlinkParentAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser(STAFF_ROLES);
+  const user = await getCapableUser('accounts:link-children');
 
   if (!user) return { ok: false, error: 'Only the tutor or an admin can manage accounts' };
 
@@ -77,7 +76,7 @@ export async function unlinkParentAction(input: unknown): Promise<ActionResult> 
 }
 
 export async function setUserActiveAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser(STAFF_ROLES);
+  const user = await getCapableUser('accounts:manage');
 
   if (!user) return { ok: false, error: 'Only the tutor or an admin can manage accounts' };
 
@@ -95,7 +94,7 @@ export async function setUserActiveAction(input: unknown): Promise<ActionResult>
 }
 
 export async function changeUserRoleAction(input: unknown): Promise<ActionResult> {
-  const user = await getAuthorizedUser(STAFF_ROLES);
+  const user = await getCapableUser('accounts:manage');
 
   if (!user) return { ok: false, error: 'Only the tutor or an admin can manage accounts' };
 

@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 
 import { auth } from '@/auth';
 import { connectDB } from '@/lib/mongodb';
+import { isStaff } from '@/lib/auth/roles';
 
 // Reads the session cookie and dials the database, so it must never be
 // prerendered or cached - every call reports live state.
@@ -32,7 +33,7 @@ type HealthResponse = {
  */
 export async function GET() {
   const session = await auth();
-  const isAdmin = session?.user?.role === 'admin';
+  const isOwner = isStaff(session?.user?.role);
 
   try {
     const instance = await connectDB();
@@ -47,7 +48,7 @@ export async function GET() {
       database: healthy ? 'connected' : 'unavailable',
     };
 
-    if (isAdmin) {
+    if (isOwner) {
       body.detail = { host, name, readyState };
     }
 
@@ -60,7 +61,7 @@ export async function GET() {
 
     const body: HealthResponse = { status: 'error', database: 'unavailable' };
 
-    if (isAdmin) {
+    if (isOwner) {
       body.detail = {
         host: '',
         name: '',
