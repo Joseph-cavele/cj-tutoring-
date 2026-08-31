@@ -4,6 +4,7 @@ import type { SessionUser } from '@/lib/auth/guard';
 import { studentProfileFor } from '@/lib/booking/access';
 import { gradeSymbol, type QuestionType } from '@/lib/assessment/constants';
 import { markAttempt } from '@/services/marking.service';
+import { toOptionViews } from '@/lib/assessment/plain';
 
 export class AttemptError extends Error {
   constructor(
@@ -131,7 +132,7 @@ export async function getAttemptPaper(user: SessionUser, attemptId: string) {
       questionId: question._id.toString(),
       type: question.type,
       prompt: question.prompt,
-      options: question.options ?? [],
+      options: toOptionViews(question.options),
       marks: question.marks,
     })),
     // Whatever they had typed before a refresh or a dropped connection.

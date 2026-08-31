@@ -12,6 +12,7 @@ import { generateTest } from '@/lib/ai/assessment';
 import type { GenerateTestInput, SaveTestInput } from '@/validations/test';
 import { isStaff } from '@/lib/auth/roles';
 import { sastLocalToUtc, utcToSastLocal } from '@/lib/assessment/schedule';
+import { toOptionViews, toRubricViews } from '@/lib/assessment/plain';
 
 export class TestError extends Error {
   constructor(
@@ -192,10 +193,10 @@ export async function getTestForTutor(user: SessionUser, testId: string) {
       questionId: question._id.toString(),
       type: question.type,
       prompt: question.prompt,
-      options: question.options ?? [],
+      options: toOptionViews(question.options),
       correctAnswer: question.correctAnswer,
       explanation: question.explanation ?? '',
-      rubric: question.rubric ?? [],
+      rubric: toRubricViews(question.rubric),
       marks: question.marks,
     })),
   };
@@ -472,7 +473,7 @@ export async function getTestSubmissions(
         maxMarks: answer.maxMarks ?? question?.marks ?? 0,
         markedBy: answer.markedBy ?? null,
         feedback: answer.feedback ?? '',
-        rubric: question?.rubric ?? [],
+        rubric: toRubricViews(question?.rubric),
         modelAnswer: question?.correctAnswer ?? '',
       };
     }),

@@ -2,7 +2,7 @@ import { Types } from 'mongoose';
 
 import { connectDB } from '@/lib/mongodb';
 import { AiConversation, AiMessage } from '@/models';
-import { AI_MODEL, SYSTEM_INSTRUCTION, getGeminiClient } from '@/lib/ai/gemini';
+import { AI_MODEL, SYSTEM_INSTRUCTION, generateContentWithRetry } from '@/lib/ai/gemini';
 
 /** How much prior turn-taking to replay as context. */
 const HISTORY_LIMIT = 20;
@@ -32,7 +32,7 @@ async function askModel(
   let reply: string;
 
   try {
-    const response = await getGeminiClient().models.generateContent({
+    const response = await generateContentWithRetry({
       model: AI_MODEL,
       contents,
       config: { systemInstruction: SYSTEM_INSTRUCTION },
