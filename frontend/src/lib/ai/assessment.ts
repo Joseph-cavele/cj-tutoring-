@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { getGeminiClient, AI_MODEL } from '@/lib/ai/gemini';
+import { AI_MODEL, generateContentWithRetry, isOverloadedAiError } from '@/lib/ai/gemini';
 import {
   QUESTION_TYPES,
   isAutoMarked,
@@ -137,7 +137,7 @@ export async function generateTest(params: GenerateTestParams): Promise<Generate
   let text: string;
 
   try {
-    const response = await getGeminiClient().models.generateContent({
+    const response = await generateContentWithRetry({
       model: AI_MODEL,
       contents: prompt,
       config: {
@@ -150,7 +150,15 @@ export async function generateTest(params: GenerateTestParams): Promise<Generate
     text = response.text ?? '';
   } catch (error) {
     console.error('[ai] test generation call failed', error);
-    throw new AiUnavailableError('The AI could not generate a test just now');
+
+    // Already retried a few times by the client, so an overload here means
+    // Gemini is genuinely busy. Say so plainly: a tutor who knows to try again
+    // in a minute does not go looking for a fault in their own prompt.
+    throw new AiUnavailableError(
+      isOverloadedAiError(error)
+        ? 'The AI is busy right now. Please try again in a minute - nothing you entered was wrong.'
+        : 'The AI could not generate a test just now'
+    );
   }
 
   const parsed = safeParseJson(text, generatedTestSchema);
@@ -286,7 +294,7 @@ Instructions:
   let text: string;
 
   try {
-    const response = await getGeminiClient().models.generateContent({
+    const response = await generateContentWithRetry({
       model: AI_MODEL,
       contents: instruction,
       config: {
@@ -372,7 +380,7 @@ Write:
 Do not mention marking rubrics, prompts, or that an AI marked this.`;
 
   try {
-    const response = await getGeminiClient().models.generateContent({
+    const response = await generateContentWithRetry({
       model: AI_MODEL,
       contents: instruction,
       config: {

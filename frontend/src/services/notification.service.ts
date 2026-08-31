@@ -43,12 +43,19 @@ async function deliver(
 
     return true;
   } catch (error) {
-    // A machine with no mail credentials is a normal development state, so it
-    // is not worth a stack trace every time. Anything else is.
-    if (!(error instanceof EmailNotConfiguredError)) {
-      console.error(`[notify] ${context} failed`, error);
+    // Missing credentials get a one-line warning rather than a stack trace:
+    // it is a normal state on a fresh machine. It must not be silent, though.
+    // It was, and a dev server started before RESEND_API_KEY was set swallowed
+    // every registration email with nothing in the log to explain it - the
+    // failure looked identical to no email being sent at all.
+    if (error instanceof EmailNotConfiguredError) {
+      console.warn(
+        `[notify] ${context} NOT SENT to ${message.to ?? CONTACT.email}: ${error.message}`
+      );
+      return false;
     }
 
+    console.error(`[notify] ${context} failed`, error);
     return false;
   }
 }
@@ -93,6 +100,35 @@ export async function notifyAccountCreated(params: {
   role: Role;
 }): Promise<boolean> {
   const awaitingApproval = params.role !== 'tutor';
+
+  // Tell the office too. An application sits in the queue doing nothing until
+  // the tutor looks at it, and nobody was told one had arrived - the applicant
+  // got a "we have received it" while the only person who can act on it heard
+  // nothing. Sent first, and its own delivery is independent of the
+  // applicant's, so one failing does not lose the other.
+  if (awaitingApproval) {
+    const dashboard = ctaFor('tutor', 'Review applications');
+
+    await deliver('application office notice', {
+      // No `to`, so it goes to CONTACT.email like every other office copy.
+      subject: `New ${params.role} application: ${params.name}`,
+      // Replying in the inbox then reaches the applicant directly.
+      replyTo: params.to,
+      content: {
+        heading: 'Someone has applied to join',
+        intro: [
+          `${params.name} has registered as a ${params.role} and is waiting for your decision. They cannot sign in until you accept them.`,
+        ],
+        details: [
+          { label: 'Name', value: params.name },
+          { label: 'Email', value: params.to },
+          { label: 'Applying as', value: params.role },
+          { label: 'Received', value: new Date().toLocaleString('en-ZA') },
+        ],
+        cta: dashboard,
+      },
+    });
+  }
 
   return deliver('account created', {
     to: params.to,

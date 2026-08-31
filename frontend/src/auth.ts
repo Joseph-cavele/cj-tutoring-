@@ -25,6 +25,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
   pages: { signIn: '/login' },
 
+  /**
+   * Derive the origin from the request rather than from a fixed base.
+   *
+   * Without this, Next normalises request.url to localhost, so every absolute
+   * url NextAuth builds points a phone on the LAN back at its own machine - a
+   * dead address. That is what the redirect callback below used to work around
+   * by returning a bare path, until that broke client-side sign-in.
+   *
+   * Safe here because the app is only ever reached through a host we control:
+   * Vercel in production (which enables this automatically anyway) and the dev
+   * server on the LAN.
+   */
+  trustHost: true,
+
   providers: [
     Credentials({
       credentials: {
@@ -142,15 +156,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
      * and closes the open redirect at the same time: an off-site callbackUrl
      * becomes a path on this site rather than a jump to someone else's.
      */
-    async redirect({ url }) {
-      if (url.startsWith('/')) return url;
-
+    async redirect({ url, baseUrl }) {
+      // Must return an ABSOLUTE url. Returning a path looks harmless on the
+      // server, but signIn(..., { redirect: false }) in the browser reads the
+      // result with `new URL(data.url)` and no base, so a path throws
+      // "Failed to construct 'URL': Invalid URL" after a successful sign-in.
       try {
-        const target = new URL(url);
-        return `${target.pathname}${target.search}` || '/';
+        // Resolves a path against the origin and leaves an absolute url alone.
+        const target = new URL(url, baseUrl);
+
+        // Off-site targets collapse to our own root: a callbackUrl is
+        // attacker-supplied, and must not become a jump to another host.
+        if (target.origin !== new URL(baseUrl).origin) return baseUrl;
+
+        return target.toString();
       } catch {
-        // Not a URL at all, so there is nothing safe to honour.
-        return '/';
+        // Not a url at all, so there is nothing safe to honour.
+        return baseUrl;
       }
     },
 

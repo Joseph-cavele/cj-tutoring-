@@ -5,6 +5,7 @@ import { gradeSymbol, isAutoMarked } from '@/lib/assessment/constants';
 import { markObjective, toPercentage } from '@/lib/assessment/marking';
 import { AiUnavailableError, generateFeedback, markWrittenAnswer } from '@/lib/ai/assessment';
 import { isStaff } from '@/lib/auth/roles';
+import { toRubricViews } from '@/lib/assessment/plain';
 
 export class MarkingError extends Error {
   constructor(
@@ -100,7 +101,7 @@ export async function markAttempt(attemptId: string) {
       const result = await markWrittenAnswer({
         prompt: question.prompt,
         modelAnswer: question.correctAnswer,
-        rubric: question.rubric ?? [],
+        rubric: toRubricViews(question.rubric),
         maxMarks: question.marks,
         studentAnswer: response,
       });
