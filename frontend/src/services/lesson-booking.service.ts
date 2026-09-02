@@ -20,6 +20,7 @@ import {
 import { validateProposedLesson } from '@/services/availability.service';
 import { addMinutes, isInPast, toDateOnly, toIsoDate } from '@/lib/availability/slots';
 import { isPaymentConfigured } from '@/lib/payments';
+import { consumeLesson, refundLesson } from '@/services/plan.service';
 import { cancelMeetingForBooking, createMeetingForBooking } from '@/services/zoom.service';
 import {
   notifyBookingCreated,
@@ -151,6 +152,61 @@ function priceFor(hourlyRate: number, durationMinutes: number): number {
 }
 
 /**
+ * The hourly rate that applies to one lesson.
+ *
+ * In-person costs more than online, so the mode picks the rate. `hourlyRate`
+ * is the fallback for tutors recorded before per-mode pricing existed - their
+ * single rate still prices every lesson rather than blocking the booking.
+ *
+ * `hybrid` describes what a tutor offers, not how a lesson is delivered, so it
+ * is priced as in-person: the dearer of the two, because quoting the cheaper
+ * one and then teaching in person would undercharge every time.
+ */
+function rateFor(
+  tutor: { hourlyRate?: number; hourlyRates?: { online?: number; in_person?: number } },
+  mode: DeliveryMode
+): number | null {
+  const perMode = mode === 'online' ? tutor.hourlyRates?.online : tutor.hourlyRates?.in_person;
+
+  if (typeof perMode === 'number' && perMode > 0) return perMode;
+  if (typeof tutor.hourlyRate === 'number' && tutor.hourlyRate > 0) return tutor.hourlyRate;
+
+  return null;
+}
+
+/**
+ * Gives a plan lesson back when the booking that took it is called off.
+ *
+ * Mutates the document and leaves saving to the caller, which already saves;
+ * two writes where one will do is how a status and a credit end up
+ * disagreeing.
+ *
+ * Idempotent by construction: it only acts while `paymentStatus` is still
+ * `covered`, and it moves that to `refunded` as it goes, so cancelling an
+ * already-cancelled lesson cannot hand back a second lesson. The link to the
+ * plan is deliberately kept - it is the record of which month paid for this.
+ */
+async function returnPlanCredit(booking: {
+  paymentStatus: BookingPaymentStatus;
+  subscription?: { toString(): string } | null;
+}) {
+  if (booking.paymentStatus !== 'covered' || !booking.subscription) return;
+
+  try {
+    await refundLesson(booking.subscription.toString());
+    booking.paymentStatus = 'refunded';
+  } catch (error) {
+    // The cancellation itself must still go through: a student who cannot
+    // cancel is worse off than one owed a lesson the tutor can restore by
+    // hand, and this is loud enough to be found.
+    console.error('[booking] could not return a plan lesson on release', {
+      subscription: booking.subscription.toString(),
+      error,
+    });
+  }
+}
+
+/**
  * Creates a booking.
  *
  * Every rule in brief section 14 is enforced here, on the server, using data
@@ -167,7 +223,7 @@ export async function createBooking(user: SessionUser, input: CreateBookingInput
     const actor = await resolveBookingActor(user, input.studentId);
 
     const tutor = await Tutor.findById(input.tutorId)
-      .select('subjects teachingModes isActive isVerified hourlyRate user')
+      .select('subjects teachingModes isActive isVerified hourlyRate hourlyRates user')
       .lean();
 
     if (!tutor || !tutor.isActive || !tutor.isVerified) {
@@ -199,7 +255,9 @@ export async function createBooking(user: SessionUser, input: CreateBookingInput
       throw new BookingError('That tutor does not teach in that format', 409);
     }
 
-    if (typeof tutor.hourlyRate !== 'number' || tutor.hourlyRate <= 0) {
+    const hourlyRate = rateFor(tutor, input.teachingMode);
+
+    if (hourlyRate === null) {
       // Pricing is database-driven (CLAUDE.md section 5), so a missing rate is
       // a configuration problem, not something to paper over with a default.
       throw new BookingError('That tutor has no rate set yet. Please contact us.', 409);
@@ -217,13 +275,28 @@ export async function createBooking(user: SessionUser, input: CreateBookingInput
 
     if (!check.ok) throw new BookingError(check.reason, 409);
 
-    const amount = priceFor(tutor.hourlyRate, input.durationMinutes);
+    const amount = priceFor(hourlyRate, input.durationMinutes);
+
+    /**
+     * A monthly plan pays for this lesson before the gateway is ever involved.
+     *
+     * The drawdown happens here, not after the booking is written, because the
+     * conditional update is what stops two simultaneous bookings both taking
+     * the last lesson on a month. If the write below then fails - a slot race,
+     * say - the credit is handed straight back rather than being lost.
+     */
+    const plan = await consumeLesson({
+      studentId: actor.studentId,
+      mode: input.teachingMode,
+    });
 
     // When no gateway is configured the lesson is simply not gated on payment,
     // rather than being silently marked as paid.
-    const paymentStatus: BookingPaymentStatus = isPaymentConfigured()
-      ? 'pending'
-      : 'not_required';
+    const paymentStatus: BookingPaymentStatus = plan
+      ? 'covered'
+      : isPaymentConfigured()
+        ? 'pending'
+        : 'not_required';
 
     try {
       const booking = await Booking.create({
@@ -242,6 +315,7 @@ export async function createBooking(user: SessionUser, input: CreateBookingInput
         amount,
         currency: 'ZAR',
         paymentStatus,
+        subscription: plan?._id ?? null,
         // Rules 1 and 2, enforced by the unique indexes rather than by the
         // read above, which two callers can pass simultaneously.
         tutorSlotKeys: check.slots.map((slot) =>
@@ -264,8 +338,34 @@ export async function createBooking(user: SessionUser, input: CreateBookingInput
         amount: booking.amount,
         currency: booking.currency,
         requiresPayment: paymentStatus === 'pending',
+        /** Present when a monthly plan paid for this lesson. */
+        plan: plan
+          ? {
+              id: plan._id.toString(),
+              sessionsRemaining: Math.max(0, plan.sessionsTotal - plan.sessionsUsed),
+              sessionsTotal: plan.sessionsTotal,
+            }
+          : null,
       };
     } catch (error) {
+      // The lesson was taken off the plan before the write was attempted, so a
+      // write that never landed has to give it back. Without this, losing a
+      // slot race would quietly cost the student one of their four lessons.
+      if (plan) {
+        try {
+          await refundLesson(plan._id.toString());
+        } catch (refundError) {
+          // Logged loudly rather than thrown: the booking already failed, and
+          // replacing that error with this one would tell the student the
+          // wrong thing. A stranded credit is recoverable by hand; a
+          // misreported failure is not.
+          console.error('[booking] could not return a plan lesson', {
+            subscription: plan._id.toString(),
+            refundError,
+          });
+        }
+      }
+
       // E11000: another request took one of these slots between the check and
       // the write. This is the race the indexes exist to lose safely.
       if (
@@ -388,10 +488,12 @@ export async function decideBooking(
     booking.decidedAt = new Date();
     booking.decisionNote = input.note ?? null;
 
-    // Rule 10: a rejected lesson frees the time immediately.
+    // Rule 10: a rejected lesson frees the time immediately - and, if a monthly
+    // plan paid for it, the lesson goes back on the plan.
     if (input.decision === 'rejected') {
       booking.set('tutorSlotKeys', undefined);
       booking.set('studentSlotKeys', undefined);
+      await returnPlanCredit(booking);
     }
 
     await booking.save();
@@ -460,6 +562,7 @@ export async function cancelBooking(
     booking.decisionNote = input.reason ?? null;
     booking.set('tutorSlotKeys', undefined);
     booking.set('studentSlotKeys', undefined);
+    await returnPlanCredit(booking);
 
     await booking.save();
 
@@ -503,6 +606,7 @@ export async function adminSetBookingStatus(
   if (input.status === 'cancelled' || input.status === 'rejected') {
     booking.set('tutorSlotKeys', undefined);
     booking.set('studentSlotKeys', undefined);
+    await returnPlanCredit(booking);
   }
 
   await booking.save();

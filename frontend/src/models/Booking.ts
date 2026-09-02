@@ -15,6 +15,7 @@ import {
  */
 export {
   ACTIVE_BOOKING_STATUSES,
+  ATTENDANCE_ALLOWED,
   BOOKING_PAYMENT_STATUSES,
   BOOKING_STATUSES,
   PAYMENT_SETTLED,
@@ -45,6 +46,14 @@ export interface IBooking {
   currency: string;
   paymentStatus: BookingPaymentStatus;
   payment?: Types.ObjectId | null;
+  /**
+   * The monthly plan this lesson was drawn from, when it was.
+   *
+   * Set together with `paymentStatus: 'covered'`. Keeping the link means a
+   * cancelled lesson can hand its credit back to the right plan, and the owner
+   * can show which four lessons a month actually bought.
+   */
+  subscription?: Types.ObjectId | null;
   zoomMeeting?: Types.ObjectId | null;
   /** Who changed the status last, and when - kept for disputes. */
   decidedBy?: Types.ObjectId | null;
@@ -91,6 +100,7 @@ const bookingSchema = new Schema<IBooking>(
       index: true,
     },
     payment: { type: Schema.Types.ObjectId, ref: 'Payment', default: null },
+    subscription: { type: Schema.Types.ObjectId, ref: 'Subscription', default: null },
     zoomMeeting: { type: Schema.Types.ObjectId, ref: 'ZoomMeeting', default: null },
     decidedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     decidedAt: { type: Date, default: null },

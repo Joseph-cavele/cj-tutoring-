@@ -3,6 +3,7 @@ import { Attendance, Booking, Lesson } from '@/models';
 import type { SessionUser } from '@/lib/auth/guard';
 import { isStaff } from '@/lib/auth/roles';
 import { bookingScopeFor } from '@/lib/booking/access';
+import { ATTENDANCE_ALLOWED } from '@/lib/booking/constants';
 import type { RecordLessonInput } from '@/validations/lesson';
 
 export class LessonError extends Error {
@@ -49,7 +50,7 @@ export async function recordLesson(params: {
   // The booking is the source of truth for who and what. Nothing is taken
   // from the request body except the booking id and the tutor's own words.
   const booking = await Booking.findById(input.bookingId)
-    .select('student tutor subject date durationMinutes status')
+    .select('student tutor subject date durationMinutes status paymentStatus')
     .lean();
 
   if (!booking) {
@@ -65,6 +66,23 @@ export async function recordLesson(params: {
 
   if (booking.status === 'pending') {
     throw new LessonError('Accept the booking before recording the lesson', 409);
+  }
+
+  /**
+   * A lesson nobody paid for cannot be marked as attended.
+   *
+   * The gate is here as well as on the joining link because attendance is what
+   * feeds the percentage a parent sees and the record a dispute is settled
+   * from - marking a student present at a lesson they were never entitled to
+   * sit would put the wrong answer in the one place people trust.
+   *
+   * `covered` passes: a monthly plan already paid for this hour.
+   */
+  if (!ATTENDANCE_ALLOWED.includes(booking.paymentStatus)) {
+    throw new LessonError(
+      'That lesson has not been paid for, so attendance cannot be recorded',
+      409
+    );
   }
 
   const lesson = await Lesson.findOneAndUpdate(

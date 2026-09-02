@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongodb';
 import { Booking, ZoomMeeting } from '@/models';
 import type { SessionUser } from '@/lib/auth/guard';
 import { bookingScopeFor, tutorProfileFor } from '@/lib/booking/access';
+import { ATTENDANCE_ALLOWED } from '@/lib/booking/constants';
 import { SAST_OFFSET_MINUTES, toMinutes } from '@/lib/availability/slots';
 import { createMeeting, deleteMeeting, isZoomConfigured } from '@/lib/zoom/client';
 
@@ -144,7 +145,7 @@ export async function getMeetingForViewer(
   // Ownership first: this returns nothing for a booking the user is not on.
   const scope = await bookingScopeFor(user);
   const booking = await Booking.findOne({ _id: bookingId, ...scope })
-    .select('zoomMeeting tutor status teachingMode')
+    .select('zoomMeeting tutor status teachingMode paymentStatus')
     .lean();
 
   if (!booking?.zoomMeeting) return null;
@@ -157,6 +158,22 @@ export async function getMeetingForViewer(
     const tutor = await tutorProfileFor(user.id);
     return Boolean(tutor && tutor._id.toString() === booking.tutor.toString());
   })();
+
+  /**
+   * The joining link is the lesson, so it is the last gate on payment.
+   *
+   * A lesson is accepted only once payment has settled, but it can stop being
+   * settled afterwards - a refund, or a chargeback recorded by the tutor - and
+   * an accepted booking would otherwise keep handing out its link. A plan
+   * booking passes on `covered`, which is what lets a monthly student join
+   * without paying again.
+   *
+   * The tutor is never blocked: they are the one who would have to explain the
+   * problem, and they cannot do that from outside the room.
+   */
+  if (!isTutorOnThisBooking && !ATTENDANCE_ALLOWED.includes(booking.paymentStatus)) {
+    return null;
+  }
 
   // The host fields are select:false, so they are only fetched for the host.
   const meeting = isTutorOnThisBooking

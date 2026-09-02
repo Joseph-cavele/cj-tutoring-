@@ -11,7 +11,15 @@ import {
 } from '@/services/payment-admin.service';
 import { PAYMENT_STATUS, type PaymentStatus } from '@/models/types';
 import { formatPrice } from '@/services/pricing.service';
+import { monthlyPackages } from '@/services/plan.service';
+import { listUnpaidLessons, listStudentOptions } from '@/services/payment-admin.service';
 import ReconcilePayments from '@/components/owner/ReconcilePayments';
+import RecordPayment from '@/components/owner/RecordPayment';
+import {
+  MethodBadge,
+  PlanBadge,
+  StatusBadge,
+} from '@/components/payments/PaymentBadges';
 import DashboardSection, { StatTile } from '@/components/dashboard/DashboardSection';
 import { FIELD_CLASS, PRIMARY_BUTTON } from '@/components/booking/ui';
 
@@ -39,11 +47,15 @@ export default async function AdminPaymentsPage(props: {
 
   const query = params.q?.trim() || undefined;
 
-  const [totals, payments, invoices] = await Promise.all([
-    getPaymentTotals(),
-    listPayments({ status, query }),
-    listInvoices(),
-  ]);
+  const [totals, payments, invoices, unpaidLessons, students, offers] =
+    await Promise.all([
+      getPaymentTotals(),
+      listPayments({ status, query }),
+      listInvoices(),
+      listUnpaidLessons(),
+      listStudentOptions(),
+      monthlyPackages(),
+    ]);
 
   return (
     <section className="bg-brand-cream py-10 lg:py-14">
@@ -78,15 +90,19 @@ export default async function AdminPaymentsPage(props: {
             detail="received"
           />
           <StatTile
-            label="Unpaid lessons"
-            value={formatPrice(totals.unpaidBookingValue, totals.currency)}
-            detail={`${totals.unpaidBookings} holding a slot`}
-            highlight={totals.unpaidBookings > 0}
+            label="Outstanding"
+            value={formatPrice(totals.outstandingTotal, totals.currency)}
+            detail={`${totals.unpaidBookings} lesson${
+              totals.unpaidBookings === 1 ? '' : 's'
+            }, ${totals.unpaidPlans} plan${totals.unpaidPlans === 1 ? '' : 's'}`}
+            highlight={totals.outstandingTotal > 0}
           />
           <StatTile
-            label="Refunded"
-            value={formatPrice(totals.refunded, totals.currency)}
-            detail="returned"
+            label="Plans running"
+            value={totals.activePlans}
+            detail={`${totals.lessonsOnActivePlans} lesson${
+              totals.lessonsOnActivePlans === 1 ? '' : 's'
+            } still owed`}
           />
         </div>
 
@@ -110,6 +126,28 @@ export default async function AdminPaymentsPage(props: {
         ) : null}
 
         <ReconcilePayments />
+
+        {/* Cash and EFT. The one place a human, rather than a gateway, says
+            money arrived - so it is kept visibly apart from the read-only
+            figures above. */}
+        <section className="rounded-3xl bg-white p-5 shadow-[var(--shadow-soft)] sm:p-6">
+          <h2 className="text-[18px] font-extrabold text-brand-navy">
+            Record a cash or EFT payment
+          </h2>
+          <p className="mt-1 text-[14px] leading-relaxed text-brand-slate">
+            For money that did not come through the card gateway. The amount is
+            taken from the lesson or plan being settled, so there is nothing to
+            mistype.
+          </p>
+
+          <div className="mt-4">
+            <RecordPayment
+              unpaidLessons={unpaidLessons}
+              students={students}
+              offers={offers}
+            />
+          </div>
+        </section>
 
         <form
           action="/tutor/payments"
@@ -213,13 +251,6 @@ export default async function AdminPaymentsPage(props: {
   );
 }
 
-const STATUS_STYLES: Record<PaymentStatus, string> = {
-  successful: 'bg-green-100 text-green-800',
-  pending: 'bg-brand-amber/15 text-brand-amber-text',
-  failed: 'bg-red-100 text-red-700',
-  refunded: 'bg-brand-blue-50 text-brand-slate',
-};
-
 function PaymentCard({ payment }: { payment: PaymentRow }) {
   return (
     <article className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-blue-100 bg-white p-4">
@@ -228,19 +259,30 @@ function PaymentCard({ payment }: { payment: PaymentRow }) {
           <span className="font-mono text-[14px] font-semibold break-all text-brand-navy">
             {payment.reference}
           </span>
-          <span
-            className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold tracking-wide uppercase ${
-              STATUS_STYLES[payment.status]
-            }`}
-          >
-            {payment.status}
-          </span>
+          <StatusBadge status={payment.status} />
+          <PlanBadge plan={payment.plan} />
+          <MethodBadge method={payment.method} />
         </p>
 
         <p className="mt-1 text-[13px] text-brand-slate">
-          {payment.purchase} · {payment.studentName} · paid by {payment.payerName} ·{' '}
-          {payment.provider}
+          {payment.purchase} · {payment.studentName} · paid by {payment.payerName}
+          {payment.isManual ? ' · recorded by hand' : ` · ${payment.provider}`}
         </p>
+
+        {/* Only a monthly payment has a drawdown to report. */}
+        {payment.lessonsTotal !== null && payment.lessonsRemaining !== null ? (
+          <p className="mt-0.5 text-[13px] font-semibold text-brand-navy">
+            {payment.lessonsRemaining === 0
+              ? `Plan completed · ${payment.lessonsTotal} of ${payment.lessonsTotal} used`
+              : `${payment.lessonsUsed} of ${payment.lessonsTotal} lessons used · ${payment.lessonsRemaining} remaining`}
+          </p>
+        ) : null}
+
+        {payment.note ? (
+          <p className="mt-0.5 text-[13px] break-words text-brand-slate">
+            {payment.note}
+          </p>
+        ) : null}
 
         {payment.invoiceNumber ? (
           <p className="mt-0.5 text-[13px] text-brand-slate">

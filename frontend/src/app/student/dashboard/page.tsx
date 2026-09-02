@@ -6,6 +6,7 @@ import {
   GraduationCap,
   LineChart,
   Sparkles,
+  Wallet,
 } from 'lucide-react';
 
 import { requireRole } from '@/lib/auth/guard';
@@ -118,6 +119,13 @@ export default async function StudentDashboard() {
               title="Materials"
               body="Notes, worksheets and past papers."
               tone="amber"
+            />
+            <QuickAccessTile
+              href="/student/payments"
+              icon={<Wallet className="size-5" />}
+              title="Payments & plans"
+              body="Your plan, lessons left and what you have paid."
+              tone="blue"
             />
           </div>
         </nav>

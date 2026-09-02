@@ -20,26 +20,12 @@ export type PackageView = {
 };
 
 /**
- * Rands, whole numbers. Intl puts a space after the symbol for en-ZA, which
- * reads oddly next to a large heading, so it is removed while keeping the
- * space as the thousands separator, as South African convention expects.
+ * The formatters live in `@/lib/payments/format`, which pulls in no Mongoose,
+ * so a client component can import them without dragging the MongoDB driver
+ * into the browser bundle. Re-exported here so existing server callers keep
+ * working unchanged.
  */
-export function formatPrice(amount: number, currency = 'ZAR'): string {
-  return new Intl.NumberFormat('en-ZA', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  })
-    .format(amount)
-    .replace(/^(\D+)\s/, '$1');
-}
-
-/** How a lesson is delivered, in words a parent would use. */
-export function formatMode(mode: string): string {
-  if (mode === 'in_person') return 'In person';
-  if (mode === 'hybrid') return 'Online or in person';
-  return 'Online';
-}
+export { formatMode, formatPrice } from '@/lib/payments/format';
 
 /**
  * The price in force today. Package.price keeps history so past invoices stay
