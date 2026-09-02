@@ -6,6 +6,7 @@ import {
   failBookingPayment,
   settleBookingPayment,
 } from '@/services/booking-payment.service';
+import { activatePlan, failPlanPayment } from '@/services/plan-checkout.service';
 
 /**
  * Sends a confirmed charge to whichever fulfilment it belongs to.
@@ -16,14 +17,25 @@ import {
  * decision is made from our own data rather than from the provider's payload.
  */
 
-async function kindOf(reference: string): Promise<'booking' | 'package' | 'unknown'> {
+async function kindOf(
+  reference: string
+): Promise<'booking' | 'monthly' | 'package' | 'unknown'> {
   await connectDB();
 
-  const payment = await Payment.findOne({ reference }).select('booking package').lean();
+  const payment = await Payment.findOne({ reference })
+    .select('booking package plan')
+    .lean();
 
   if (!payment) return 'unknown';
 
-  return payment.booking ? 'booking' : 'package';
+  if (payment.booking) return 'booking';
+
+  // A monthly plan grants a drawdown rather than a plain package, so it is
+  // fulfilled by the plan service. Read from our own row, never from the
+  // provider's payload.
+  if (payment.plan === 'monthly') return 'monthly';
+
+  return 'package';
 }
 
 export async function settleAnyPayment(params: {
@@ -35,6 +47,10 @@ export async function settleAnyPayment(params: {
 
   if (kind === 'booking') {
     return settleBookingPayment(params);
+  }
+
+  if (kind === 'monthly') {
+    return activatePlan(params);
   }
 
   if (kind === 'package') {
@@ -53,6 +69,7 @@ export async function failAnyPayment(reference: string, raw?: unknown) {
   const kind = await kindOf(reference);
 
   if (kind === 'booking') return failBookingPayment(reference, raw);
+  if (kind === 'monthly') return failPlanPayment(reference, raw);
   if (kind === 'package') return failPayment(reference, raw);
 }
 

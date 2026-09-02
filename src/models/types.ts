@@ -39,13 +39,53 @@ export type AttendanceStatus = (typeof ATTENDANCE_STATUS)[number];
 export const SUBMISSION_STATUS = ['pending', 'submitted', 'late', 'graded'] as const;
 export type SubmissionStatus = (typeof SUBMISSION_STATUS)[number];
 
-export const PAYMENT_STATUS = ['pending', 'successful', 'failed', 'refunded'] as const;
+/**
+ * Where a payment stands.
+ *
+ * `cancelled` is distinct from `failed`: a card that was declined is a failure
+ * worth retrying, while a checkout the payer abandoned, or an EFT the tutor
+ * wrote off, is not. Reconciliation chases neither, but the owner can still
+ * see which is which.
+ */
+export const PAYMENT_STATUS = [
+  'pending',
+  'successful',
+  'failed',
+  'cancelled',
+  'refunded',
+] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUS)[number];
 
 export const PAYMENT_PROVIDERS = ['paystack', 'paypal'] as const;
 export type PaymentProvider = (typeof PAYMENT_PROVIDERS)[number];
 
-export const SUBSCRIPTION_STATUS = ['active', 'expired', 'cancelled', 'pending'] as const;
+/**
+ * Plans and methods live in `@/lib/payments/plans` because client components
+ * need them and this module is imported by every model. Re-exported so server
+ * code can keep reading everything payment-shaped from one place.
+ */
+export {
+  PAYMENT_METHODS,
+  PAYMENT_PLANS,
+  type PaymentMethod,
+  type PaymentPlan,
+} from '@/lib/payments/plans';
+
+/**
+ * Where a monthly plan stands.
+ *
+ * `completed` means every included lesson was used while the window was still
+ * open - the student is finished, not lapsed, so the screen offers a renewal
+ * rather than an apology. `expired` means the window closed with lessons still
+ * on it, which is a different conversation.
+ */
+export const SUBSCRIPTION_STATUS = [
+  'active',
+  'completed',
+  'expired',
+  'cancelled',
+  'pending',
+] as const;
 export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUS)[number];
 
 export const DELIVERY_MODES = ['online', 'in_person', 'hybrid'] as const;

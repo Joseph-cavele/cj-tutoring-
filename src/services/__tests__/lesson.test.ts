@@ -31,8 +31,13 @@ const parent: SessionUser = { id: 'user-parent', role: 'parent' } as SessionUser
 
 const BOOKING_ID = '64b7f9c2e1a4d5f6a7b8c9d0';
 
-/** Booking.findById(...).select(...).lean() */
-const givenBooking = (status: string) => {
+/**
+ * Booking.findById(...).select(...).lean()
+ *
+ * `paymentStatus` defaults to paid because these cases are about the write-up
+ * rules, not the money. The gate itself is exercised by its own test below.
+ */
+const givenBooking = (status: string, paymentStatus = 'paid') => {
   mocked.bookingFindById.mockReturnValue({
     select: () => ({
       lean: async () => ({
@@ -43,6 +48,7 @@ const givenBooking = (status: string) => {
         date: new Date('2026-09-01T00:00:00.000Z'),
         durationMinutes: 60,
         status,
+        paymentStatus,
       }),
     }),
   });
@@ -103,6 +109,30 @@ describe('recordLesson booking state', () => {
     mocked.bookingFindById.mockReturnValue({ select: () => ({ lean: async () => null }) });
 
     await expect(recordLesson({ user: tutor, input })).rejects.toMatchObject({ status: 404 });
+  });
+
+  /**
+   * Attendance feeds the percentage a parent sees and the record a dispute is
+   * settled from, so a lesson nobody paid for must not acquire one - even
+   * though the booking itself is accepted.
+   */
+  it.each(['pending', 'failed', 'refunded'])(
+    'refuses to record attendance on a %s payment',
+    async (paymentStatus) => {
+      givenBooking('accepted', paymentStatus);
+
+      await expect(recordLesson({ user: tutor, input })).rejects.toMatchObject({
+        status: 409,
+      });
+      expect(mocked.attendanceUpsert).not.toHaveBeenCalled();
+    }
+  );
+
+  it('records attendance for a lesson a monthly plan covered', async () => {
+    givenBooking('accepted', 'covered');
+
+    await expect(recordLesson({ user: tutor, input })).resolves.toBeDefined();
+    expect(mocked.attendanceUpsert).toHaveBeenCalled();
   });
 });
 

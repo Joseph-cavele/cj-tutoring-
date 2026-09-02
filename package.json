@@ -13,6 +13,7 @@
     "make:owner": "node --env-file=.env.local scripts/make-owner.mjs",
     "migrate:admin-to-tutor": "node --env-file=.env.local scripts/migrate-admin-to-tutor.mjs",
     "migrate:attendance": "node --env-file=.env.local scripts/migrate-attendance-index.mjs",
+    "seed:plans": "node --env-file=.env.local scripts/seed-payment-plans.mjs",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
